@@ -18,15 +18,15 @@ const Sidebar = ({
 }: SidebarProps) => {
 
   return (
-    <div className="w-80 glass rounded-2xl p-6 flex flex-col justify-center animate-fade-in">
+    <div className="w-80 glass rounded-2xl p-6 flex flex-col animate-fade-in">
       {/* Logo */}
       <Logo />
       
       {/* Separador sutil */}
-      <div className="h-px bg-gradient-to-r from-transparent via-purple-500/30 to-transparent my-6" />
+      <div className="h-px bg-gradient-to-r from-transparent via-purple-500/30 to-transparent my-4" />
       
       {/* Botões de ação */}
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3 mb-4">
         <Button 
           onClick={onSelectFolder}
           disabled={isConverting}

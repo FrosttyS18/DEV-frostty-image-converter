@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect } from 'react';
 import { useImagePreview } from '../hooks/useImagePreview';
 
 interface CanvasProps {
@@ -6,6 +7,88 @@ interface CanvasProps {
 
 const Canvas = ({ currentPreview }: CanvasProps) => {
   const { previewUrl, imageInfo, isLoading, error } = useImagePreview(currentPreview);
+  const [zoom, setZoom] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [isSpacePressed, setIsSpacePressed] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  
+  // Reset zoom quando mudar de arquivo
+  useEffect(() => {
+    setZoom(1);
+    setPosition({ x: 0, y: 0 });
+  }, [currentPreview]);
+  
+  // Listener para tecla ESPACO (pan mode como Photoshop)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && !e.repeat && previewUrl) {
+        e.preventDefault();
+        setIsSpacePressed(true);
+      }
+    };
+    
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        setIsSpacePressed(false);
+        setIsDragging(false);
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [previewUrl]);
+  
+  // Zoom com Ctrl+Scroll
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey) {
+        e.preventDefault();
+        
+        const delta = e.deltaY > 0 ? 0.9 : 1.1;
+        setZoom(prevZoom => {
+          const newZoom = Math.max(0.1, Math.min(10, prevZoom * delta));
+          return newZoom;
+        });
+      }
+    };
+    
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    return () => container.removeEventListener('wheel', handleWheel);
+  }, []);
+  
+  // Pan/arrastar quando zoom > 1 OU quando ESPACO pressionado
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (zoom > 1 || isSpacePressed) {
+      setIsDragging(true);
+      setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
+    }
+  };
+  
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (isDragging && (zoom > 1 || isSpacePressed)) {
+      setPosition({
+        x: e.clientX - dragStart.x,
+        y: e.clientY - dragStart.y
+      });
+    }
+  };
+  
+  const handleMouseUp = () => {
+    if (!isSpacePressed) {
+      setIsDragging(false);
+    }
+  };
 
   return (
     <div className="flex-1 flex flex-col gap-4 animate-fade-in">
@@ -20,7 +103,19 @@ const Canvas = ({ currentPreview }: CanvasProps) => {
       </div>
       
       {/* Canvas área */}
-      <div className="glass rounded-2xl flex-1 p-8 flex items-center justify-center overflow-auto">
+      <div 
+        ref={containerRef}
+        className="glass rounded-2xl flex-1 p-8 flex items-center justify-center overflow-auto relative"
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        style={{ 
+          cursor: (zoom > 1 || isSpacePressed) 
+            ? (isDragging ? 'grabbing' : 'grab') 
+            : 'default' 
+        }}
+      >
         {isLoading ? (
           <div className="text-center">
             <div className="w-16 h-16 border-4 border-purple-500/20 border-t-purple-500 rounded-full animate-spin mx-auto mb-4"></div>
@@ -36,11 +131,19 @@ const Canvas = ({ currentPreview }: CanvasProps) => {
             <p className="text-red-400">{error}</p>
           </div>
         ) : previewUrl ? (
-          <div className="relative flex items-center justify-center min-w-min min-h-min">
+          <div 
+            className="relative flex items-center justify-center"
+            style={{
+              transform: `translate(${position.x}px, ${position.y}px) scale(${zoom})`,
+              transition: isDragging ? 'none' : 'transform 0.1s ease-out',
+              transformOrigin: 'center center',
+            }}
+          >
             <img
               src={previewUrl}
               alt="Preview"
-              className="rounded-lg shadow-2xl"
+              className="rounded-lg shadow-2xl select-none"
+              draggable={false}
               style={{
                 imageRendering: 'pixelated',
                 maxWidth: 'none',
@@ -77,10 +180,20 @@ const Canvas = ({ currentPreview }: CanvasProps) => {
       
       {/* Info footer */}
       {currentPreview && (
-        <div className="glass rounded-2xl px-6 py-3">
+        <div className="glass rounded-2xl px-6 py-3 flex items-center justify-between">
           <p className="text-purple-300 text-sm">
             Arquivo selecionado para preview
           </p>
+          {imageInfo && (
+            <div className="flex items-center gap-3">
+              <span className="text-purple-400 text-xs">
+                Zoom: {Math.round(zoom * 100)}%
+              </span>
+              <span className="text-purple-500/50 text-xs">
+                Ctrl+Scroll = zoom | Espaco = mover
+              </span>
+            </div>
+          )}
         </div>
       )}
     </div>

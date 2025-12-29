@@ -101,11 +101,11 @@ export function decodeTGA(buffer: ArrayBuffer): ImageData {
       }
       
       if (!found) {
-        // Última tentativa: fatoração simples
-        for (let w = 1; w <= Math.sqrt(totalPixels) * 2; w++) {
+        // Última tentativa: fatoração simples (aceita qualquer tamanho >= 4x4)
+        for (let w = 4; w <= Math.sqrt(totalPixels) * 2; w++) {
           if (totalPixels % w === 0) {
             const h = totalPixels / w;
-            if (w * h === totalPixels && w >= 16 && h >= 16) {
+            if (w * h === totalPixels && w >= 4 && h >= 4 && w <= 16384 && h <= 16384) {
               header.width = w;
               header.height = h;
               console.log('[TGA] Dimensoes calculadas por fatoracao:', w, 'x', h);

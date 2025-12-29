@@ -72,9 +72,9 @@ export function decodeOZJ(buffer: ArrayBuffer): ArrayBuffer {
           const soi = soiOffsets[i];
           const imageSize = lastEOI - soi + 2;
           
-          // Ignora thumbnails muito pequenas
-          if (imageSize < 10000) {
-            console.log(`[OZJ] SOI em ${soi} ignorado (tamanho ${imageSize} bytes)`);
+          // Ignora apenas segmentos muito pequenos (lixo/header)
+          if (imageSize < 100) {
+            console.log(`[OZJ] SOI em ${soi} ignorado (muito pequeno: ${imageSize} bytes)`);
             continue;
           }
           
@@ -94,12 +94,18 @@ export function decodeOZJ(buffer: ArrayBuffer): ArrayBuffer {
           try {
             const testDecode = jpeg.decode(candidateImage, { useTArray: true });
             
-            // Se decodificou com sucesso e tem dimensões razoáveis
-            if (testDecode.width > 100 && testDecode.height > 100) {
+            // Se decodificou com sucesso e tem dimensões válidas (qualquer tamanho razoável)
+            if (testDecode.width > 0 && testDecode.height > 0 && 
+                testDecode.width <= 16384 && testDecode.height <= 16384) {
               console.log(`[OZJ] Imagem valida encontrada (SOI:${soi}): ${imageSize} bytes, ${testDecode.width}x${testDecode.height}`);
+              
+              if (testDecode.width > 8192 || testDecode.height > 8192) {
+                console.warn(`[OZJ] AVISO: Imagem muito grande, pode ser lento`);
+              }
+              
               return candidateImage.buffer;
             } else {
-              console.log(`[OZJ] SOI em ${soi} muito pequeno: ${testDecode.width}x${testDecode.height}`);
+              console.log(`[OZJ] SOI em ${soi} dimensoes invalidas: ${testDecode.width}x${testDecode.height}`);
             }
           } catch (err) {
             console.log(`[OZJ] SOI em ${soi} falhou ao decodificar: ${err instanceof Error ? err.message : 'erro desconhecido'}`);

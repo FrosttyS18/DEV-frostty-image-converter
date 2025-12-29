@@ -89,9 +89,13 @@ async function pngToTga(pngPath: string, outputFolder?: string): Promise<void> {
     
     img.onload = async () => {
       try {
-        // Valida dimensões
-        if (img.width <= 0 || img.height <= 0 || img.width > 8192 || img.height > 8192) {
-          throw new Error(`Dimensões inválidas: ${img.width}x${img.height}`);
+        // Valida dimensões básicas
+        if (img.width <= 0 || img.height <= 0) {
+          throw new Error(`Dimensoes invalidas: ${img.width}x${img.height}`);
+        }
+        
+        if (img.width > 16384 || img.height > 16384) {
+          console.warn(`[PNG→TGA] AVISO: Imagem muito grande (${img.width}x${img.height}), processamento pode ser lento`);
         }
         
         const canvas = document.createElement('canvas');
@@ -252,9 +256,13 @@ async function pngToOzt(pngPath: string, outputFolder?: string): Promise<void> {
     
     img.onload = async () => {
       try {
-        // Valida dimensões
-        if (img.width <= 0 || img.height <= 0 || img.width > 8192 || img.height > 8192) {
-          throw new Error(`Dimensões inválidas: ${img.width}x${img.height}`);
+        // Valida dimensões básicas
+        if (img.width <= 0 || img.height <= 0) {
+          throw new Error(`Dimensoes invalidas: ${img.width}x${img.height}`);
+        }
+        
+        if (img.width > 16384 || img.height > 16384) {
+          console.warn(`[PNG→OZT] AVISO: Imagem muito grande (${img.width}x${img.height}), processamento pode ser lento`);
         }
         
         const canvas = document.createElement('canvas');
