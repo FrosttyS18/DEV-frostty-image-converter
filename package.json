@@ -1,23 +1,30 @@
 {
-  "name": "deu-frostty-image-converter",
+  "name": "dev-frostty-image-converter",
   "version": "1.0.0",
-  "description": "Mu Online Image Converter - DEU Frostty",
+  "description": "Mu Online Image Converter - DEV Frostty",
   "main": "electron/main.js",
   "scripts": {
-    "dev": "concurrently \"npm run dev:vite\" \"npm run dev:electron\"",
+    "dev": "concurrently -k \"npm run dev:vite\" \"npm run dev:electron\"",
     "dev:vite": "vite",
     "dev:electron": "wait-on http://localhost:5173 && electron .",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "electron:build": "electron-builder"
   },
-  "keywords": ["mu-online", "image-converter", "ozt", "tga", "png"],
-  "author": "DEU Frostty",
+  "keywords": [
+    "mu-online",
+    "image-converter",
+    "ozt",
+    "tga",
+    "png"
+  ],
+  "author": "DEV Frostty",
   "license": "MIT",
   "dependencies": {
+    "@electron/remote": "^2.1.3",
+    "pako": "^2.1.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "pako": "^2.1.0"
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",
@@ -27,7 +34,7 @@
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
     "concurrently": "^9.1.2",
-    "electron": "^33.3.0",
+    "electron": "^39.2.7",
     "electron-builder": "^25.1.8",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",

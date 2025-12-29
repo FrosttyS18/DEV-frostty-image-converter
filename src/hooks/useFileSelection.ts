@@ -23,29 +23,50 @@ export const useFileSelection = () => {
         return;
       }
 
-      const files = electronService.readDirectory(folderPath);
+      const files = await electronService.readDirectory(folderPath);
       
-      const fileInfos: FileInfo[] = files
-        .filter((file: string) => {
-          const ext = electronService.getExtension(file).toLowerCase();
-          return SUPPORTED_EXTENSIONS.includes(ext as any);
-        })
-        .map((file: string) => {
-          const filePath = electronService.joinPath(folderPath, file);
-          const stats = electronService.getFileStats(filePath);
-          const extension = electronService.getExtension(file).toLowerCase();
-          
-          return {
-            path: filePath,
-            name: file,
-            extension,
-            size: stats.size,
-          };
-        });
+      const fileInfos: FileInfo[] = await Promise.all(
+        files
+          .filter((file: string) => {
+            const ext = electronService.getExtension(file).toLowerCase();
+            return SUPPORTED_EXTENSIONS.includes(ext as any);
+          })
+          .map(async (file: string) => {
+            const filePath = electronService.joinPath(folderPath, file);
+            const stats = await electronService.getFileStats(filePath);
+            const extension = electronService.getExtension(file).toLowerCase();
+            
+            return {
+              path: filePath,
+              name: file,
+              extension,
+              size: stats.size,
+            };
+          })
+      );
+
+      // Verifica se encontrou arquivos
+      if (fileInfos.length === 0) {
+        setError('Esta pasta não contém arquivos compatíveis (PNG, TGA, OZT, OZJ, OZB, OZD).');
+        setSelectedFiles([]);
+        setIsLoading(false);
+        return;
+      }
 
       setSelectedFiles(fileInfos);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erro ao selecionar pasta';
+      let errorMessage = 'Não foi possível acessar esta pasta.';
+      
+      if (err instanceof Error) {
+        if (err.message.includes('EACCES') || err.message.includes('permission')) {
+          errorMessage = 'Sem permissão para acessar esta pasta. Escolha outra localização.';
+        } else if (err.message.includes('ENOENT')) {
+          errorMessage = 'Esta pasta não existe ou foi movida.';
+        } else {
+          errorMessage = err.message;
+        }
+      }
+      
       setError(errorMessage);
       console.error('[useFileSelection] Error:', err);
     } finally {

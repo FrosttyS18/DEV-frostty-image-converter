@@ -25,41 +25,51 @@ class ElectronService {
   }
 
   /**
-   * Abre o diálogo de seleção de pasta
+   * Abre o diálogo de seleção de pasta (via IPC)
    */
   async selectFolder(): Promise<string | null> {
     try {
       const electron = this.getElectron();
-      const result = await electron.remote.dialog.showOpenDialog({
-        properties: ['openDirectory'],
-      });
-
-      if (result.canceled || result.filePaths.length === 0) {
+      
+      // Usa IPC ao invés de remote
+      const result = await electron.ipcRenderer.invoke('select-folder');
+      
+      if (result.error) {
+        throw new Error(result.error);
+      }
+      
+      if (result.canceled) {
         return null;
       }
-
-      return result.filePaths[0];
+      
+      return result.filePath || null;
     } catch (error) {
       console.error('[ElectronService] Error selecting folder:', error);
-      throw error;
+      throw new Error('Não foi possível abrir o seletor de pastas.');
     }
   }
 
   /**
-   * Lista arquivos de uma pasta
+   * Lista arquivos de uma pasta (via IPC)
    */
-  readDirectory(folderPath: string): string[] {
+  async readDirectory(folderPath: string): Promise<string[]> {
     try {
-      const fs = this.getFS();
-      return fs.readdirSync(folderPath);
+      const electron = this.getElectron();
+      const result = await electron.ipcRenderer.invoke('read-directory', folderPath);
+      
+      if (!result.ok) {
+        throw new Error(result.error || 'Erro ao ler pasta');
+      }
+      
+      return result.files || [];
     } catch (error) {
       console.error('[ElectronService] Error reading directory:', error);
-      throw error;
+      throw new Error('Não foi possível ler os arquivos desta pasta.');
     }
   }
 
   /**
-   * Lê arquivo
+   * Lê arquivo (mantém síncrono via fs direto)
    */
   readFile(filePath: string): Buffer {
     try {
@@ -67,20 +77,26 @@ class ElectronService {
       return fs.readFileSync(filePath);
     } catch (error) {
       console.error('[ElectronService] Error reading file:', error);
-      throw error;
+      throw new Error('Não foi possível ler este arquivo.');
     }
   }
 
   /**
-   * Obtém stats de arquivo
+   * Obtém stats de arquivo (via IPC)
    */
-  getFileStats(filePath: string) {
+  async getFileStats(filePath: string): Promise<{ size: number }> {
     try {
-      const fs = this.getFS();
-      return fs.statSync(filePath);
+      const electron = this.getElectron();
+      const result = await electron.ipcRenderer.invoke('get-file-stats', filePath);
+      
+      if (!result.ok) {
+        throw new Error(result.error || 'Erro ao obter stats');
+      }
+      
+      return { size: result.size };
     } catch (error) {
       console.error('[ElectronService] Error getting file stats:', error);
-      throw error;
+      throw new Error('Não foi possível obter informações do arquivo.');
     }
   }
 
@@ -101,43 +117,55 @@ class ElectronService {
   }
 
   /**
-   * Minimiza janela
+   * Minimiza janela (via IPC)
    */
   minimizeWindow(): void {
     try {
       const electron = this.getElectron();
-      electron.remote.getCurrentWindow().minimize();
+      electron.ipcRenderer.send('window-minimize');
     } catch (error) {
-      console.error('[ElectronService] Error minimizing window:', error);
+      console.error('[ElectronService] Erro ao minimizar:', error);
     }
   }
 
   /**
-   * Maximiza/Restaura janela
+   * Maximiza/Restaura janela (via IPC)
    */
   toggleMaximizeWindow(): void {
     try {
       const electron = this.getElectron();
-      const win = electron.remote.getCurrentWindow();
-      if (win.isMaximized()) {
-        win.unmaximize();
-      } else {
-        win.maximize();
-      }
+      electron.ipcRenderer.send('window-maximize');
     } catch (error) {
-      console.error('[ElectronService] Error toggling maximize:', error);
+      console.error('[ElectronService] Erro ao maximizar:', error);
     }
   }
 
   /**
-   * Fecha janela
+   * Fecha janela (via IPC)
    */
   closeWindow(): void {
     try {
       const electron = this.getElectron();
-      electron.remote.getCurrentWindow().close();
+      
+      // Tenta IPC primeiro
+      if (electron.ipcRenderer) {
+        electron.ipcRenderer.send('window-close');
+      }
+      // Fallback: usa remote
+      else if (electron.remote) {
+        electron.remote.getCurrentWindow().close();
+        electron.remote.app.quit();
+      }
+      // Último recurso
+      else {
+        window.close();
+      }
     } catch (error) {
-      console.error('[ElectronService] Error closing window:', error);
+      console.error('[ElectronService] Erro ao fechar:', error);
+      // Força encerramento
+      try {
+        window.close();
+      } catch {}
     }
   }
 }

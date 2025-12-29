@@ -1,14 +1,21 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import Canvas from './components/Canvas';
 import BackgroundEffect from './components/BackgroundEffect';
 import CustomTitlebar from './components/CustomTitlebar';
+import Toast from './components/Toast';
 import { useFileSelection } from './hooks/useFileSelection';
 import { useConversion } from './hooks/useConversion';
+import { useGlowPointer } from './hooks/useGlowPointer';
 import { ConversionType } from './types';
 
 function App() {
   const [currentPreview, setCurrentPreview] = useState<string | null>(null);
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [showErrorToast, setShowErrorToast] = useState(false);
+  
+  // Spotlight effect
+  useGlowPointer();
   
   // Hooks customizados
   const { 
@@ -28,6 +35,15 @@ function App() {
   const handleConvert = (type: ConversionType) => {
     convert(type, selectedFiles);
   };
+
+  // Controla toasts
+  useEffect(() => {
+    if (successMessage) setShowSuccessToast(true);
+  }, [successMessage]);
+
+  useEffect(() => {
+    if (conversionError || fileError) setShowErrorToast(true);
+  }, [conversionError, fileError]);
 
   return (
     <div className="relative w-screen h-screen overflow-hidden rounded-[14px] border border-white/5">
@@ -56,20 +72,23 @@ function App() {
         />
       </div>
       
-      {/* Toast de sucesso/erro */}
-      {(successMessage || conversionError || fileError) && (
-        <div className="fixed bottom-8 right-8 z-[10000] animate-fade-in">
-          <div className={`glass rounded-2xl px-6 py-4 border ${
-            successMessage ? 'border-green-500/50 bg-green-500/10' :
-            'border-red-500/50 bg-red-500/10'
-          }`}>
-            <p className={`text-sm font-medium ${
-              successMessage ? 'text-green-400' : 'text-red-400'
-            }`}>
-              {successMessage || conversionError || fileError}
-            </p>
-          </div>
-        </div>
+      {/* Toasts */}
+      {showSuccessToast && successMessage && (
+        <Toast
+          message={successMessage}
+          type="success"
+          onClose={() => setShowSuccessToast(false)}
+          duration={3000}
+        />
+      )}
+      
+      {showErrorToast && (conversionError || fileError) && (
+        <Toast
+          message={conversionError || fileError || ''}
+          type="error"
+          onClose={() => setShowErrorToast(false)}
+          duration={5000}
+        />
       )}
     </div>
   );
