@@ -63,48 +63,52 @@ export function decodeOZJ(buffer: ArrayBuffer): ArrayBuffer {
       console.log(`[OZJ] Offsets SOI: [${soiOffsets.join(', ')}]`);
       console.log(`[OZJ] Offsets EOI: [${eoiOffsets.join(', ')}]`);
       
-      // Estratégia: Arquivos OZJ do Mu Online têm SOIs aninhados (headers)
-      // seguidos da imagem principal. Procuramos o SOI que tem estrutura JPEG completa
-      // (com DQT, SOF0, DHT, SOS) e vai até o ÚLTIMO EOI
+      // Estratégia: Tenta cada combinação SOI + EOI e valida decodificando
       if (soiOffsets.length > 0 && eoiOffsets.length > 0) {
         const lastEOI = eoiOffsets[eoiOffsets.length - 1];
         
-        // Para cada SOI, verifica se tem estrutura JPEG completa após ele
-        for (let i = soiOffsets.length - 1; i >= 0; i--) {
+        // Tenta cada SOI do primeiro ao último
+        for (let i = 0; i < soiOffsets.length; i++) {
           const soi = soiOffsets[i];
+          const imageSize = lastEOI - soi + 2;
           
-          // Procura marcadores JPEG essenciais após este SOI
-          // DQT (0xDB), SOF0 (0xC0), DHT (0xC4), SOS (0xDA)
-          let hasDQT = false;
-          let hasSOF0 = false;
-          let hasDHT = false;
-          let hasSOS = false;
-          
-          // Verifica os próximos 1000 bytes após o SOI
-          const scanLimit = Math.min(soi + 1000, data.length - 1);
-          for (let j = soi; j < scanLimit; j++) {
-            if (data[j] === 0xFF) {
-              const marker = data[j + 1];
-              if (marker === 0xDB) hasDQT = true;
-              if (marker === 0xC0) hasSOF0 = true;
-              if (marker === 0xC4) hasDHT = true;
-              if (marker === 0xDA) hasSOS = true;
-            }
+          // Ignora thumbnails muito pequenas
+          if (imageSize < 10000) {
+            console.log(`[OZJ] SOI em ${soi} ignorado (tamanho ${imageSize} bytes)`);
+            continue;
           }
           
-          // Se tem todos os marcadores, é uma imagem JPEG completa
-          if (hasDQT && hasSOF0 && hasDHT && hasSOS) {
-            const imageSize = lastEOI - soi + 2;
-            console.log(`[OZJ] 🎯 Imagem JPEG completa encontrada (SOI:${soi} → EOI:${lastEOI}): ${imageSize} bytes`);
-            console.log(`[OZJ]    Marcadores: DQT=${hasDQT}, SOF0=${hasSOF0}, DHT=${hasDHT}, SOS=${hasSOS}`);
+          const candidateImage = data.slice(soi, lastEOI + 2);
+          
+          // Validação básica de marcadores JPEG
+          const hasValidStart = candidateImage[0] === 0xFF && candidateImage[1] === 0xD8;
+          const hasValidEnd = candidateImage[candidateImage.length - 2] === 0xFF && 
+                              candidateImage[candidateImage.length - 1] === 0xD9;
+          
+          if (!hasValidStart || !hasValidEnd) {
+            console.log(`[OZJ] SOI em ${soi} ignorado (marcadores invalidos)`);
+            continue;
+          }
+          
+          // Tenta decodificar com jpeg-js para validar
+          try {
+            const testDecode = jpeg.decode(candidateImage, { useTArray: true });
             
-            const imageData = data.slice(soi, lastEOI + 2);
-            return imageData.buffer;
+            // Se decodificou com sucesso e tem dimensões razoáveis
+            if (testDecode.width > 100 && testDecode.height > 100) {
+              console.log(`[OZJ] Imagem valida encontrada (SOI:${soi}): ${imageSize} bytes, ${testDecode.width}x${testDecode.height}`);
+              return candidateImage.buffer;
+            } else {
+              console.log(`[OZJ] SOI em ${soi} muito pequeno: ${testDecode.width}x${testDecode.height}`);
+            }
+          } catch (err) {
+            console.log(`[OZJ] SOI em ${soi} falhou ao decodificar: ${err instanceof Error ? err.message : 'erro desconhecido'}`);
+            continue;
           }
         }
         
-        // Fallback: usa do primeiro SOI ao último EOI
-        console.log('[OZJ] ⚠️ Nenhum SOI com estrutura completa, usando primeira imagem');
+        // Fallback: retorna do primeiro SOI ao último EOI
+        console.log('[OZJ] Usando fallback: primeiro SOI ao ultimo EOI');
         const imageData = data.slice(soiOffsets[0], lastEOI + 2);
         return imageData.buffer;
       }

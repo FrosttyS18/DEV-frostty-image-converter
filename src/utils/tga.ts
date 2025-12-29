@@ -69,7 +69,7 @@ export function decodeTGA(buffer: ArrayBuffer): ImageData {
     if (Number.isInteger(squareDimension)) {
       header.width = squareDimension;
       header.height = squareDimension;
-      console.log('[TGA] ✓ Imagem quadrada detectada:', squareDimension, 'x', squareDimension);
+      console.log('[TGA] Imagem quadrada detectada:', squareDimension, 'x', squareDimension);
     } else {
       // Tenta dimensões retangulares comuns (16:9, 4:3, 2:1, etc)
       const commonRatios = [
@@ -92,7 +92,7 @@ export function decodeTGA(buffer: ArrayBuffer): ImageData {
           if (w * h === totalPixels) {
             header.width = w;
             header.height = h;
-            console.log(`[TGA] ✓ Dimensões encontradas (${ratio.w}:${ratio.h}):`, w, 'x', h);
+            console.log(`[TGA] Dimensoes encontradas (${ratio.w}:${ratio.h}):`, w, 'x', h);
             found = true;
             break;
           }
@@ -108,7 +108,7 @@ export function decodeTGA(buffer: ArrayBuffer): ImageData {
             if (w * h === totalPixels && w >= 16 && h >= 16) {
               header.width = w;
               header.height = h;
-              console.log('[TGA] ✓ Dimensões calculadas por fatoração:', w, 'x', h);
+              console.log('[TGA] Dimensoes calculadas por fatoracao:', w, 'x', h);
               found = true;
               break;
             }
