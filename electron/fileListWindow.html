@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lista de Arquivos - Mu Converter</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #1a0933 0%, #2d1b4e 100%);
+      color: #fff;
+      height: 100vh;
+      overflow: hidden;
+    }
+    
+    .titlebar {
+      -webkit-app-region: drag;
+      background: rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(10px);
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .titlebar-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.8);
+    }
+    
+    .titlebar-controls {
+      -webkit-app-region: no-drag;
+      display: flex;
+      gap: 8px;
+    }
+    
+    .titlebar-button {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .titlebar-button:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+    
+    .titlebar-button.close:hover {
+      background: rgba(239, 68, 68, 0.8);
+      border-color: rgba(239, 68, 68, 1);
+    }
+    
+    .titlebar-button svg {
+      width: 14px;
+      height: 14px;
+      stroke: currentColor;
+    }
+    
+    .container {
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - 40px);
+      padding: 20px;
+    }
+    
+    .header {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .header h1 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #e0e0ff;
+    }
+    
+    .header .path {
+      font-size: 12px;
+      color: #a0a0c0;
+      margin-top: 4px;
+    }
+    
+    .search-box {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .search-box input {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: #fff;
+      font-size: 14px;
+    }
+    
+    .search-box input::placeholder {
+      color: rgba(255, 255, 255, 0.4);
+    }
+    
+    .search-box input:focus {
+      outline: none;
+      border-color: #8b5cf6;
+      background: rgba(0, 0, 0, 0.3);
+    }
+    
+    .file-list {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      overflow-y: auto;
+      padding: 8px;
+    }
+    
+    .file-item {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: 1px solid transparent;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .file-item:hover {
+      background: rgba(139, 92, 246, 0.2);
+      border-color: rgba(139, 92, 246, 0.5);
+      transform: translateX(4px);
+    }
+    
+    .file-item.selected {
+      background: rgba(139, 92, 246, 0.3);
+      border-color: #8b5cf6;
+    }
+    
+    .file-info {
+      flex: 1;
+    }
+    
+    .file-name {
+      font-size: 14px;
+      color: #e0e0ff;
+      margin-bottom: 4px;
+    }
+    
+    .file-size {
+      font-size: 12px;
+      color: #a0a0c0;
+    }
+    
+    .file-extension {
+      background: rgba(139, 92, 246, 0.3);
+      color: #c4b5fd;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: #a0a0c0;
+    }
+    
+    .empty-state svg {
+      width: 64px;
+      height: 64px;
+      margin-bottom: 16px;
+      opacity: 0.5;
+    }
+    
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+    
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+      background: rgba(139, 92, 246, 0.5);
+      border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(139, 92, 246, 0.7);
+    }
+  </style>
+</head>
+<body>
+  <!-- Titlebar -->
+  <div class="titlebar">
+    <div class="titlebar-title">Lista de Arquivos</div>
+    <div class="titlebar-controls">
+      <button class="titlebar-button" id="minimizeBtn" title="Minimizar">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
+        </svg>
+      </button>
+      <button class="titlebar-button close" id="closeBtn" title="Fechar">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+  </div>
+  
+  <div class="container">
+    <div class="header">
+      <h1 id="fileCount">Nenhum arquivo</h1>
+      <div class="path" id="folderPath">Selecione uma pasta</div>
+    </div>
+    
+    <div class="search-box">
+      <input 
+        type="text" 
+        id="searchInput" 
+        placeholder="Buscar arquivos... (ex: .tga, .ozj, .png)"
+      />
+    </div>
+    
+    <div class="file-list" id="fileList">
+      <div class="empty-state">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" 
+            d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+        </svg>
+        <p>Nenhum arquivo carregado</p>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    // Controles da janela
+    document.getElementById('minimizeBtn').addEventListener('click', () => {
+      window.electronAPI.minimizeFileListWindow();
+    });
+    
+    document.getElementById('closeBtn').addEventListener('click', () => {
+      window.electronAPI.closeFileListWindow();
+    });
+    
+    // Comunicacao com o processo principal
+    let allFiles = [];
+    let selectedFile = null;
+    
+    // Recebe arquivos do processo principal
+    window.electronAPI.onFilesLoaded((files, folderPath) => {
+      allFiles = files;
+      updateFileList(files);
+      updateHeader(files, folderPath);
+    });
+    
+    // Atualiza header
+    function updateHeader(files, folderPath) {
+      const fileCount = document.getElementById('fileCount');
+      const folderPathEl = document.getElementById('folderPath');
+      
+      fileCount.textContent = `${files.length} arquivo(s)`;
+      folderPathEl.textContent = folderPath || 'Pasta nao selecionada';
+    }
+    
+    // Renderiza lista de arquivos
+    function updateFileList(files) {
+      const fileList = document.getElementById('fileList');
+      
+      if (files.length === 0) {
+        fileList.innerHTML = `
+          <div class="empty-state">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" 
+                d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+            </svg>
+            <p>Nenhum arquivo encontrado</p>
+          </div>
+        `;
+        return;
+      }
+      
+      fileList.innerHTML = files.map(file => `
+        <div class="file-item" data-path="${file.path}">
+          <div class="file-info">
+            <div class="file-name">${file.name}</div>
+            <div class="file-size">${formatFileSize(file.size)}</div>
+          </div>
+          <div class="file-extension">${file.extension.replace('.', '')}</div>
+        </div>
+      `).join('');
+      
+      // Adiciona event listeners
+      document.querySelectorAll('.file-item').forEach(item => {
+        item.addEventListener('click', () => {
+          // Remove selecao anterior
+          document.querySelectorAll('.file-item').forEach(i => i.classList.remove('selected'));
+          
+          // Seleciona novo
+          item.classList.add('selected');
+          selectedFile = item.dataset.path;
+          
+          // Envia para janela principal
+          window.electronAPI.fileSelected(selectedFile);
+        });
+      });
+    }
+    
+    // Busca
+    document.getElementById('searchInput').addEventListener('input', (e) => {
+      const query = e.target.value.toLowerCase();
+      
+      if (!query) {
+        updateFileList(allFiles);
+        return;
+      }
+      
+      const filtered = allFiles.filter(file => 
+        file.name.toLowerCase().includes(query) ||
+        file.extension.toLowerCase().includes(query)
+      );
+      
+      updateFileList(filtered);
+    });
+    
+    // Formata tamanho do arquivo
+    function formatFileSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+    }
+  </script>
+</body>
+</html>

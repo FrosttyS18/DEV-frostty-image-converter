@@ -4,62 +4,79 @@ import Canvas from './components/Canvas';
 import BackgroundEffect from './components/BackgroundEffect';
 import CustomTitlebar from './components/CustomTitlebar';
 import Toast from './components/Toast';
-import { useFileSelection } from './hooks/useFileSelection';
 import { useConversion } from './hooks/useConversion';
 import { useGlowPointer } from './hooks/useGlowPointer';
 import { electronService } from './services/electronService';
-import { ConversionType } from './types';
+import { ConversionType, FileInfo } from './types';
 
 function App() {
   const [currentPreview, setCurrentPreview] = useState<string | null>(null);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [showErrorToast, setShowErrorToast] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<FileInfo[]>([]);
   
   // Spotlight effect
   useGlowPointer();
   
-  // Hooks customizados
-  const { 
-    selectedFiles, 
-    isLoading: isLoadingFiles, 
-    error: fileError, 
-    selectFolder 
-  } = useFileSelection();
-  
+  // Hook de conversao
   const { 
     isConverting, 
     error: conversionError, 
     successMessage,
     convert 
   } = useConversion();
+  
+  // Escuta selecao de arquivo da janela de lista
+  useEffect(() => {
+    const handleFileSelected = (filePath: string) => {
+      console.log('[App] Arquivo selecionado:', filePath);
+      setCurrentPreview(filePath);
+    };
+    
+    if (window.electronAPI && window.electronAPI.onFileSelected) {
+      window.electronAPI.onFileSelected(handleFileSelected);
+    }
+  }, []);
+  
+  // Funcao para selecionar pasta (abre janela de lista)
+  const selectFolder = async () => {
+    const result = await electronService.selectFolder();
+    if (!result || result.canceled) return;
+    
+    // A janela de lista sera aberta automaticamente pelo main.js
+    console.log('[App] Pasta selecionada, janela de lista aberta');
+  };
 
   const handleConvert = async (type: ConversionType) => {
-    console.log('[App] Iniciando conversão, tipo:', type);
-    
-    // Pergunta onde salvar
-    console.log('[App] Abrindo seletor de pasta destino...');
-    const outputFolder = await electronService.selectOutputFolder();
-    
-    console.log('[App] Pasta destino selecionada:', outputFolder);
-    
-    if (!outputFolder) {
-      console.log('[App] Usuário cancelou seleção de pasta');
+    if (!currentPreview) {
+      setShowErrorToast(true);
       return;
     }
     
-    // Se tem arquivo no preview, converte APENAS ele
-    if (currentPreview) {
-      const fileToConvert = selectedFiles.find(f => f.path === currentPreview);
-      console.log('[App] Convertendo arquivo do preview:', fileToConvert?.name);
-      if (fileToConvert) {
-        convert(type, [fileToConvert], outputFolder);
-        return;
-      }
+    console.log('[App] Iniciando conversao, tipo:', type);
+    
+    // Pergunta onde salvar
+    const outputFolder = await electronService.selectOutputFolder();
+    
+    if (!outputFolder) {
+      console.log('[App] Usuario cancelou selecao de pasta');
+      return;
     }
     
-    // Senão, converte todos
-    console.log('[App] Convertendo todos os arquivos:', selectedFiles.length);
-    convert(type, selectedFiles, outputFolder);
+    // Converte o arquivo atual do preview
+    const basename = await electronService.getBasename(currentPreview);
+    const ext = await electronService.getExtension(currentPreview);
+    const stats = await electronService.getFileStats(currentPreview);
+    
+    const fileToConvert: FileInfo = {
+      name: basename,
+      path: currentPreview,
+      size: stats.size,
+      extension: ext
+    };
+    
+    console.log('[App] Convertendo arquivo:', fileToConvert.name);
+    convert(type, [fileToConvert], outputFolder);
   };
 
   // Controla toasts
@@ -68,8 +85,8 @@ function App() {
   }, [successMessage]);
 
   useEffect(() => {
-    if (conversionError || fileError) setShowErrorToast(true);
-  }, [conversionError, fileError]);
+    if (conversionError) setShowErrorToast(true);
+  }, [conversionError]);
 
   return (
     <div className="relative w-screen h-screen overflow-hidden rounded-[14px] border border-white/5">
@@ -83,18 +100,15 @@ function App() {
       <div className="relative z-10 flex h-full pt-12 px-8 pb-8 gap-8">
         {/* Sidebar */}
         <Sidebar 
-          selectedFiles={selectedFiles}
           onSelectFolder={selectFolder}
           onConvert={handleConvert}
-          onFileSelect={setCurrentPreview}
           isConverting={isConverting}
-          isLoadingFiles={isLoadingFiles}
+          hasFiles={currentPreview !== null}
         />
         
         {/* Canvas Visualizador */}
         <Canvas 
           currentPreview={currentPreview}
-          selectedFiles={selectedFiles}
         />
       </div>
       
@@ -108,9 +122,9 @@ function App() {
         />
       )}
       
-      {showErrorToast && (conversionError || fileError) && (
+      {showErrorToast && (
         <Toast
-          message={conversionError || fileError || ''}
+          message={conversionError || (!currentPreview ? 'Selecione um arquivo na janela de lista' : 'Erro desconhecido')}
           type="error"
           onClose={() => setShowErrorToast(false)}
           duration={5000}

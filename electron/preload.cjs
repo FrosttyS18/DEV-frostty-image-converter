@@ -27,6 +27,15 @@ contextBridge.exposeInMainWorld("electronAPI", {
   maximizeWindow: () => ipcRenderer.send('window-maximize'),
   toggleMaximizeWindow: () => ipcRenderer.send('window-toggle-maximize'),
   closeWindow: () => ipcRenderer.send('window-close'),
+  
+  // File list window events
+  onFilesLoaded: (callback) => ipcRenderer.on('files-loaded', (event, files, folderPath) => callback(files, folderPath)),
+  fileSelected: (filePath) => ipcRenderer.send('file-selected', filePath),
+  onFileSelected: (callback) => ipcRenderer.on('file-selected', (event, filePath) => callback(filePath)),
+  
+  // File list window controls
+  minimizeFileListWindow: () => ipcRenderer.send('filelist-window-minimize'),
+  closeFileListWindow: () => ipcRenderer.send('filelist-window-close'),
 });
 
 console.log('[Preload] electronAPI exposta com sucesso!');

@@ -1,12 +1,10 @@
-import { FileInfo } from '../types';
 import { useImagePreview } from '../hooks/useImagePreview';
 
 interface CanvasProps {
   currentPreview: string | null;
-  selectedFiles: FileInfo[];
 }
 
-const Canvas = ({ currentPreview, selectedFiles }: CanvasProps) => {
+const Canvas = ({ currentPreview }: CanvasProps) => {
   const { previewUrl, imageInfo, isLoading, error } = useImagePreview(currentPreview);
 
   return (
@@ -78,10 +76,10 @@ const Canvas = ({ currentPreview, selectedFiles }: CanvasProps) => {
       </div>
       
       {/* Info footer */}
-      {selectedFiles.length > 0 && (
+      {currentPreview && (
         <div className="glass rounded-2xl px-6 py-3">
           <p className="text-purple-300 text-sm">
-            💾 {selectedFiles.length} arquivo(s) carregado(s)
+            Arquivo selecionado para preview
           </p>
         </div>
       )}

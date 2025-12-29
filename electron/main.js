@@ -7,6 +7,7 @@ remoteMain.initialize();
 
 // IPC Handlers para controles de janela
 let mainWindow = null;
+let fileListWindow = null;
 
 ipcMain.on('window-minimize', () => {
   if (mainWindow) mainWindow.minimize();
@@ -30,7 +31,7 @@ ipcMain.on('window-close', () => {
   app.quit();
 });
 
-// Handler para selecionar pasta de origem
+// Handler para selecionar pasta de origem e abrir janela de lista
 ipcMain.handle('select-folder', async () => {
   try {
     const result = await dialog.showOpenDialog({
@@ -42,9 +43,14 @@ ipcMain.handle('select-folder', async () => {
       return { canceled: true };
     }
 
+    const folderPath = result.filePaths[0];
+    
+    // Abre a janela de lista de arquivos
+    openFileListWindow(folderPath);
+
     return {
       canceled: false,
-      filePath: result.filePaths[0]
+      filePath: folderPath
     };
   } catch (error) {
     console.error('[Main] Erro ao selecionar pasta:', error);
@@ -52,6 +58,87 @@ ipcMain.handle('select-folder', async () => {
       canceled: true,
       error: 'Não foi possível abrir o seletor'
     };
+  }
+});
+
+// Abre janela de lista de arquivos
+function openFileListWindow(folderPath) {
+  // Se ja existe, fecha a anterior
+  if (fileListWindow && !fileListWindow.isDestroyed()) {
+    fileListWindow.close();
+  }
+  
+  const preloadPath = path.resolve(__dirname, './preload.cjs');
+  
+  fileListWindow = new BrowserWindow({
+    width: 500,
+    height: 700,
+    minWidth: 400,
+    minHeight: 500,
+    title: 'Lista de Arquivos',
+    frame: false,
+    transparent: true,
+    backgroundColor: '#00000000',
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: preloadPath,
+    },
+  });
+  
+  // Carrega a pagina HTML
+  fileListWindow.loadFile(path.join(__dirname, 'fileListWindow.html'));
+  
+  // Quando carregar, envia os arquivos
+  fileListWindow.webContents.on('did-finish-load', () => {
+    try {
+      const files = fs.readdirSync(folderPath);
+      const supportedExtensions = ['.tga', '.png', '.ozj', '.ozt', '.ozb', '.ozd', '.jpg', '.jpeg'];
+      
+      const fileList = files
+        .filter(file => {
+          const ext = path.extname(file).toLowerCase();
+          return supportedExtensions.includes(ext);
+        })
+        .map(file => {
+          const filePath = path.join(folderPath, file);
+          const stats = fs.statSync(filePath);
+          return {
+            name: file,
+            path: filePath,
+            size: stats.size,
+            extension: path.extname(file)
+          };
+        });
+      
+      fileListWindow.webContents.send('files-loaded', fileList, folderPath);
+    } catch (err) {
+      console.error('[Main] Erro ao ler pasta:', err);
+    }
+  });
+  
+  fileListWindow.on('closed', () => {
+    fileListWindow = null;
+  });
+}
+
+// Handler quando arquivo eh selecionado na lista
+ipcMain.on('file-selected', (event, filePath) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('file-selected', filePath);
+  }
+});
+
+// Controles da janela de lista
+ipcMain.on('filelist-window-minimize', () => {
+  if (fileListWindow && !fileListWindow.isDestroyed()) {
+    fileListWindow.minimize();
+  }
+});
+
+ipcMain.on('filelist-window-close', () => {
+  if (fileListWindow && !fileListWindow.isDestroyed()) {
+    fileListWindow.close();
   }
 });
 
