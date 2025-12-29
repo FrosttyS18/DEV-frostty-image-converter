@@ -305,6 +305,9 @@
     </div>
   </div>
   
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jpeg-js@0.4.4/lib/index.min.js"></script>
+  
   <script>
     // Controles da janela
     document.getElementById('minimizeBtn').addEventListener('click', () => {
@@ -408,6 +411,225 @@
           window.electronAPI.fileSelected(selectedFile);
         });
       });
+      
+      // Configura lazy loading de thumbnails
+      setupLazyLoading();
+    }
+    
+    // Configura Intersection Observer para lazy loading
+    function setupLazyLoading() {
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const thumbnail = entry.target;
+            const filePath = thumbnail.dataset.filePath;
+            const item = thumbnail.closest('.file-item');
+            
+            if (item && item.dataset.loaded === 'false') {
+              item.dataset.loaded = 'loading';
+              loadThumbnail(filePath, thumbnail);
+              observer.unobserve(thumbnail); // Para de observar apos carregar
+            }
+          }
+        });
+      }, {
+        root: document.getElementById('fileList'),
+        rootMargin: '50px', // Comeca a carregar 50px antes de ficar visivel
+        threshold: 0.01
+      });
+      
+      // Observa todas as thumbnails
+      document.querySelectorAll('.file-thumbnail').forEach(thumb => {
+        observer.observe(thumb);
+      });
+    }
+    
+    // Carrega thumbnail de um arquivo
+    async function loadThumbnail(filePath, thumbnailElement) {
+      // Verifica cache
+      if (thumbnailCache.has(filePath)) {
+        displayThumbnail(thumbnailElement, thumbnailCache.get(filePath));
+        return;
+      }
+      
+      // Adiciona a fila se ja temos muitas carregando
+      if (currentlyLoading >= MAX_CONCURRENT) {
+        loadingQueue.push({ filePath, thumbnailElement });
+        return;
+      }
+      
+      currentlyLoading++;
+      thumbnailElement.classList.add('loading');
+      
+      const controller = new AbortController();
+      abortControllers.set(filePath, controller);
+      
+      try {
+        // Le o arquivo
+        const result = await window.electronAPI.readFile(filePath);
+        
+        if (!result.ok || controller.signal.aborted) {
+          throw new Error('Cancelado ou erro ao ler');
+        }
+        
+        const ext = await window.electronAPI.pathExtname(filePath);
+        const data = new Uint8Array(result.data);
+        
+        // Gera thumbnail baseado na extensao
+        let thumbnailUrl;
+        
+        if (ext.toLowerCase() === '.png') {
+          const blob = new Blob([data], { type: 'image/png' });
+          thumbnailUrl = URL.createObjectURL(blob);
+        } else if (ext.toLowerCase() === '.jpg' || ext.toLowerCase() === '.jpeg') {
+          const blob = new Blob([data], { type: 'image/jpeg' });
+          thumbnailUrl = URL.createObjectURL(blob);
+        } else {
+          // Para TGA, OZT, OZJ, cria data URL (mais complexo)
+          thumbnailUrl = await createThumbnailDataURL(data, ext);
+        }
+        
+        if (!controller.signal.aborted && thumbnailUrl) {
+          thumbnailCache.set(filePath, thumbnailUrl);
+          displayThumbnail(thumbnailElement, thumbnailUrl);
+        }
+      } catch (err) {
+        console.error('[Thumbnail] Erro:', err.message);
+        // Mantem o placeholder em caso de erro
+      } finally {
+        currentlyLoading--;
+        abortControllers.delete(filePath);
+        thumbnailElement.classList.remove('loading');
+        
+        // Processa proximo da fila
+        if (loadingQueue.length > 0) {
+          const next = loadingQueue.shift();
+          loadThumbnail(next.filePath, next.thumbnailElement);
+        }
+      }
+    }
+    
+    // Exibe thumbnail
+    function displayThumbnail(element, url) {
+      element.innerHTML = `<img src="${url}" alt="Thumbnail" />`;
+    }
+    
+    // Decodificador TGA simplificado
+    function decodeTGASimple(buffer) {
+      const view = new DataView(buffer);
+      
+      const width = view.getUint16(12, true);
+      const height = view.getUint16(14, true);
+      const bitsPerPixel = view.getUint8(16);
+      
+      if (width === 0 || height === 0 || width > 4096 || height > 4096) {
+        throw new Error('Dimensoes TGA invalidas');
+      }
+      
+      let offset = 18;
+      const idLength = view.getUint8(0);
+      if (idLength > 0) offset += idLength;
+      
+      const bytesPerPixel = bitsPerPixel / 8;
+      const imageData = new Uint8Array(buffer, offset);
+      const rgbaData = new Uint8Array(width * height * 4);
+      
+      for (let i = 0; i < width * height; i++) {
+        const srcIndex = i * bytesPerPixel;
+        const dstIndex = i * 4;
+        
+        const b = imageData[srcIndex];
+        const g = imageData[srcIndex + 1];
+        const r = imageData[srcIndex + 2];
+        const a = bytesPerPixel === 4 ? imageData[srcIndex + 3] : 255;
+        
+        rgbaData[dstIndex] = r;
+        rgbaData[dstIndex + 1] = g;
+        rgbaData[dstIndex + 2] = b;
+        rgbaData[dstIndex + 3] = a;
+      }
+      
+      return { width, height, data: rgbaData };
+    }
+    
+    // Cria data URL para formatos customizados
+    async function createThumbnailDataURL(data, ext) {
+      try {
+        const extLower = ext.toLowerCase();
+        const arrayBuffer = data.buffer;
+        
+        let imageData;
+        
+        if (extLower === '.tga') {
+          // TGA direto
+          imageData = decodeTGASimple(arrayBuffer);
+        } else if (extLower === '.ozt' || extLower === '.ozb' || extLower === '.ozd') {
+          // OZT: TGA comprimido com zlib
+          const compressed = new Uint8Array(arrayBuffer);
+          
+          // Tenta descomprimir
+          if (compressed[0] === 0x78) {
+            const decompressed = pako.inflate(compressed);
+            imageData = decodeTGASimple(decompressed.buffer);
+          } else {
+            // Formato nao comprimido, tenta offset 4
+            const offsetBuffer = arrayBuffer.slice(4);
+            imageData = decodeTGASimple(offsetBuffer);
+          }
+        } else if (extLower === '.ozj') {
+          // OZJ: JPEG do Mu Online
+          const bytes = new Uint8Array(arrayBuffer);
+          
+          // Procura offset 24 (padrao Mu)
+          if (bytes.length > 24 && bytes[24] === 0xFF && bytes[25] === 0xD8) {
+            const jpegData = bytes.slice(24);
+            const blob = new Blob([jpegData], { type: 'image/jpeg' });
+            return URL.createObjectURL(blob);
+          }
+          
+          return null;
+        }
+        
+        if (!imageData) return null;
+        
+        // Cria canvas e renderiza thumbnail 48x48
+        const canvas = document.createElement('canvas');
+        const thumbSize = 48;
+        canvas.width = thumbSize;
+        canvas.height = thumbSize;
+        
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return null;
+        
+        // Calcula escala para caber no quadrado
+        const scale = Math.min(thumbSize / imageData.width, thumbSize / imageData.height);
+        const scaledW = imageData.width * scale;
+        const scaledH = imageData.height * scale;
+        const offsetX = (thumbSize - scaledW) / 2;
+        const offsetY = (thumbSize - scaledH) / 2;
+        
+        // Cria ImageData e desenha
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = imageData.width;
+        tempCanvas.height = imageData.height;
+        const tempCtx = tempCanvas.getContext('2d');
+        
+        if (tempCtx) {
+          const imgData = tempCtx.createImageData(imageData.width, imageData.height);
+          imgData.data.set(imageData.data);
+          tempCtx.putImageData(imgData, 0, 0);
+          
+          // Desenha redimensionado
+          ctx.fillStyle = 'rgba(0,0,0,0)';
+          ctx.fillRect(0, 0, thumbSize, thumbSize);
+          ctx.drawImage(tempCanvas, offsetX, offsetY, scaledW, scaledH);
+        }
+        
+        return canvas.toDataURL('image/png');
+      } catch (err) {
+        console.error('[Thumbnail] Erro ao criar:', err.message);
+        return null;
+      }
     }
     
     // Busca

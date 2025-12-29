@@ -220,6 +220,26 @@ ipcMain.handle('read-file', async (_event, filePath) => {
   }
 });
 
+// Handler para gerar thumbnail (simplificado - retorna os dados raw)
+// A janela de lista renderiza apenas PNG/JPG por enquanto
+// TGA/OZT/OZJ usam placeholder ate implementacao completa
+ipcMain.handle('generate-thumbnail', async (_event, filePath) => {
+  try {
+    const ext = path.extname(filePath).toLowerCase();
+    const data = fs.readFileSync(filePath);
+    
+    // Por enquanto, apenas retorna indicacao de sucesso
+    // Thumbnails customizados (TGA/OZT/OZJ) podem ser implementados depois
+    return { 
+      ok: true, 
+      data: Array.from(data),
+      extension: ext 
+    };
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
+});
+
 // Handler para escrever arquivo
 ipcMain.handle('write-file', async (_event, { filePath, data }) => {
   try {

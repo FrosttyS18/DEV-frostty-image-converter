@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   writeFile: (filePath, data) => ipcRenderer.invoke('write-file', { filePath, data }),
   readDirectory: (folderPath) => ipcRenderer.invoke('read-directory', folderPath),
   getFileStats: (filePath) => ipcRenderer.invoke('get-file-stats', filePath),
+  generateThumbnail: (filePath) => ipcRenderer.invoke('generate-thumbnail', filePath),
   
   // Path utilities (via IPC)
   pathJoin: (...paths) => ipcRenderer.invoke('path-join', paths),
