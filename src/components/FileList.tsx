@@ -1,4 +1,6 @@
 import { FileInfo } from '../types';
+import { EXTENSION_COLORS } from '../constants/formats';
+import { formatFileSize } from '../utils/formatters';
 
 interface FileListProps {
   files: FileInfo[];
@@ -6,24 +8,8 @@ interface FileListProps {
 }
 
 const FileList = ({ files, onFileSelect }: FileListProps) => {
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
-  };
-
   const getExtensionColor = (ext: string): string => {
-    switch (ext.toLowerCase()) {
-      case '.png': return 'text-green-400';
-      case '.tga': return 'text-blue-400';
-      case '.ozt': return 'text-purple-400';
-      case '.ozj': return 'text-yellow-400';
-      case '.ozb': return 'text-pink-400';
-      case '.ozd': return 'text-orange-400';
-      default: return 'text-gray-400';
-    }
+    return EXTENSION_COLORS[ext.toLowerCase()] || 'text-gray-400';
   };
 
   return (

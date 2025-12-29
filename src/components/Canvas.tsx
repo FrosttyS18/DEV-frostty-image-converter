@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
 import { FileInfo } from '../types';
+import { useImagePreview } from '../hooks/useImagePreview';
 
 interface CanvasProps {
   currentPreview: string | null;
@@ -7,65 +7,7 @@ interface CanvasProps {
 }
 
 const Canvas = ({ currentPreview, selectedFiles }: CanvasProps) => {
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [imageInfo, setImageInfo] = useState<{ width: number; height: number } | null>(null);
-
-  useEffect(() => {
-    if (!currentPreview) {
-      setPreviewUrl(null);
-      setImageInfo(null);
-      return;
-    }
-
-    const loadPreview = async () => {
-      try {
-        const fs = window.require('fs');
-        const path = window.require('path');
-        
-        const ext = path.extname(currentPreview).toLowerCase();
-        
-        if (ext === '.png') {
-          // PNG direto
-          const data = fs.readFileSync(currentPreview);
-          const blob = new Blob([data], { type: 'image/png' });
-          const url = URL.createObjectURL(blob);
-          setPreviewUrl(url);
-          
-          // Carregar dimensões
-          const img = new Image();
-          img.onload = () => {
-            setImageInfo({ width: img.width, height: img.height });
-          };
-          img.src = url;
-          
-        } else if (ext === '.tga' || ext === '.ozt' || ext === '.ozj') {
-          // Converter para preview
-          const { loadImageAsDataUrl } = await import('../utils/imageLoader');
-          const dataUrl = await loadImageAsDataUrl(currentPreview);
-          setPreviewUrl(dataUrl);
-          
-          // Carregar dimensões
-          const img = new Image();
-          img.onload = () => {
-            setImageInfo({ width: img.width, height: img.height });
-          };
-          img.src = dataUrl;
-        }
-        
-      } catch (error) {
-        console.error('Erro ao carregar preview:', error);
-        setPreviewUrl(null);
-      }
-    };
-
-    loadPreview();
-
-    return () => {
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
-      }
-    };
-  }, [currentPreview]);
+  const { previewUrl, imageInfo, isLoading, error } = useImagePreview(currentPreview);
 
   return (
     <div className="flex-1 flex flex-col gap-4 animate-fade-in">
@@ -81,14 +23,28 @@ const Canvas = ({ currentPreview, selectedFiles }: CanvasProps) => {
       
       {/* Canvas área */}
       <div className="glass rounded-2xl flex-1 p-8 flex items-center justify-center overflow-hidden">
-        {previewUrl ? (
+        {isLoading ? (
+          <div className="text-center">
+            <div className="w-16 h-16 border-4 border-purple-500/20 border-t-purple-500 rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-white/60">Carregando preview...</p>
+          </div>
+        ) : error ? (
+          <div className="text-center">
+            <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <p className="text-red-400">{error}</p>
+          </div>
+        ) : previewUrl ? (
           <div className="relative max-w-full max-h-full flex items-center justify-center">
             <img
               src={previewUrl}
               alt="Preview"
               className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
               style={{
-                imageRendering: 'pixelated', // Para manter qualidade de pixel art
+                imageRendering: 'pixelated',
               }}
             />
           </div>

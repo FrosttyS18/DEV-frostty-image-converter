@@ -1,27 +1,21 @@
+import { electronService } from '../services/electronService';
+
 const CustomTitlebar = () => {
   const handleMinimize = () => {
-    // @ts-ignore
-    window.require('electron').remote.getCurrentWindow().minimize();
+    electronService.minimizeWindow();
   };
 
   const handleMaximize = () => {
-    // @ts-ignore
-    const win = window.require('electron').remote.getCurrentWindow();
-    if (win.isMaximized()) {
-      win.unmaximize();
-    } else {
-      win.maximize();
-    }
+    electronService.toggleMaximizeWindow();
   };
 
   const handleClose = () => {
-    // @ts-ignore
-    window.require('electron').remote.getCurrentWindow().close();
+    electronService.closeWindow();
   };
 
   return (
     <div 
-      className="fixed top-0 left-0 right-0 h-8 bg-gradient-to-r from-[#0a0f1a] via-[#0d1420] to-[#0a0f1a] border-b border-purple-500/20 flex items-center justify-between px-4 z-[9999]"
+      className="fixed top-0 left-0 right-0 h-8 bg-gradient-to-r from-[#0a0f1a] via-[#0d1420] to-[#0a0f1a] border-b border-purple-500/20 flex items-center justify-between px-4 z-[9999] rounded-t-[14px]"
       style={{ WebkitAppRegion: 'drag' } as any}
     >
       {/* Área vazia para arrastar */}
