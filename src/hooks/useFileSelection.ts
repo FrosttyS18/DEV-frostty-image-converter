@@ -52,7 +52,7 @@ export const useFileSelection = () => {
 
       // Verifica se encontrou arquivos
       if (fileInfos.length === 0) {
-        setError('Esta pasta não contém arquivos compatíveis (PNG, TGA, OZT, OZJ, OZB, OZD).');
+        setError('Esta pasta não contém arquivos compatíveis (PNG, TGA, OZT, OZJ, OZB).');
         setSelectedFiles([]);
         setIsLoading(false);
         return;

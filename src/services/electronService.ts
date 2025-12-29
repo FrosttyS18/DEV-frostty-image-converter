@@ -16,7 +16,7 @@ declare global {
       getFileStats: (filePath: string) => Promise<{ ok: boolean; size?: number; error?: string }>;
       
       // Converters
-      convertOzdToDds: (params: { inputPath: string; outputPath: string }) => Promise<{ ok: boolean; size?: number; error?: string }>;
+      // convertOzdToDds - removido (não implementado)
       
       // Path utilities
       pathJoin: (...paths: string[]) => Promise<string>;
@@ -174,22 +174,7 @@ class ElectronService {
     }
   }
 
-  /**
-   * Converte arquivo OZD para DDS usando o conversor C com DLL
-   */
-  async convertOzdToDds(inputPath: string, outputPath: string): Promise<void> {
-    try {
-      const api = this.getAPI();
-      const result = await api.convertOzdToDds({ inputPath, outputPath });
-
-      if (!result.ok || result.error) {
-        throw new Error(result.error || 'Erro ao converter OZD');
-      }
-    } catch (error) {
-      console.error('[ElectronService] Erro ao converter OZD:', error);
-      throw new Error('Não foi possível converter arquivo OZD.');
-    }
-  }
+  // convertOzdToDds removido - conversão não implementada
 
   /**
    * Junta caminhos (via IPC)

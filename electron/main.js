@@ -220,82 +220,9 @@ ipcMain.handle('read-file', async (_event, filePath) => {
   }
 });
 
-// Handler para converter OZD usando o conversor C com DLL
-ipcMain.handle('convert-ozd-to-dds', async (_event, { inputPath, outputPath }) => {
-  try {
-    const { spawn } = require('child_process');
-    
-    console.log('[OZD Converter] Iniciando conversão...');
-    console.log('[OZD Converter] Input:', inputPath);
-    console.log('[OZD Converter] Output:', outputPath);
-    
-    // Garante que o diretório de saída existe
-    const outputDir = path.dirname(outputPath);
-    if (!fs.existsSync(outputDir)) {
-      fs.mkdirSync(outputDir, { recursive: true });
-    }
-    
-    // Caminho para o conversor
-    const converterPath = path.join(__dirname, '..', 'ozd-converter-v2.exe');
-    
-    if (!fs.existsSync(converterPath)) {
-      throw new Error(`Conversor não encontrado: ${converterPath}`);
-    }
-    
-    // Executa o conversor usando spawn (melhor para Windows)
-    // Define o cwd como a pasta do executável para encontrar a DLL
-    const converterDir = path.dirname(converterPath);
-    
-    return new Promise((resolve, reject) => {
-      const process = spawn(converterPath, [inputPath, outputPath], {
-        windowsHide: true,
-        cwd: converterDir // Define o diretório de trabalho
-      });
-      
-      let stdout = '';
-      let stderr = '';
-      
-      process.stdout.on('data', (data) => {
-        stdout += data.toString();
-      });
-      
-      process.stderr.on('data', (data) => {
-        stderr += data.toString();
-      });
-      
-      process.on('close', (code) => {
-        console.log('[OZD Converter] Saída:', stdout);
-        if (stderr) {
-          console.log('[OZD Converter] Erros:', stderr);
-        }
-        
-        if (code !== 0) {
-          reject(new Error(`Conversor falhou com código ${code}: ${stderr || stdout}`));
-          return;
-        }
-        
-        // Verifica se o arquivo DDS foi criado
-        if (!fs.existsSync(outputPath)) {
-          reject(new Error('Arquivo DDS não foi criado pelo conversor'));
-          return;
-        }
-        
-        const stats = fs.statSync(outputPath);
-        console.log('[OZD Converter] Arquivo DDS criado com sucesso!');
-        console.log('[OZD Converter] Tamanho:', stats.size, 'bytes');
-        
-        resolve({ ok: true, size: stats.size });
-      });
-      
-      process.on('error', (error) => {
-        reject(new Error(`Erro ao executar conversor: ${error.message}`));
-      });
-    });
-  } catch (error) {
-    console.error('[OZD Converter] Erro:', error);
-    return { ok: false, error: error.message };
-  }
-});
+// Handler para converter OZD - DESABILITADO (formato não implementado)
+// Handler OZD removido - conversão não implementada
+// Formato proprietário que requer DLL específica ou algoritmo de criptografia não descoberto
 
 // Handler para gerar thumbnail (simplificado - retorna os dados raw)
 // A janela de lista renderiza apenas PNG/JPG por enquanto
