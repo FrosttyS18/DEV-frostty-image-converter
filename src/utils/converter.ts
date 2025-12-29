@@ -57,10 +57,17 @@ async function convertFile(
       break;
       
     case 'OZT_TO_TGA':
-      if (ext !== '.ozt' && ext !== '.ozb' && ext !== '.ozd') {
-        throw new Error(`Arquivo "${filename}" não é OZT/OZB/OZD. Conversão OZT→TGA requer arquivos .ozt, .ozb ou .ozd`);
+      if (ext !== '.ozt' && ext !== '.ozb') {
+        throw new Error(`Arquivo "${filename}" não é OZT/OZB. Conversão OZT→TGA requer arquivos .ozt ou .ozb`);
       }
       await oztToTga(filePath, outputFolder);
+      break;
+      
+    case 'OZD_TO_DDS':
+      if (ext !== '.ozd') {
+        throw new Error(`Arquivo "${filename}" não é OZD. Conversão OZD→DDS requer arquivos .ozd`);
+      }
+      await ozdToDds(filePath, outputFolder);
       break;
       
     default:
@@ -432,4 +439,46 @@ async function ozjToJpg(ozjPath: string, outputFolder?: string): Promise<void> {
   }
   
   console.log('[OZJ→JPG] ========================================');
+}
+
+// OZD -> DDS (descriptografia XOR)
+async function ozdToDds(ozdPath: string, outputFolder?: string): Promise<void> {
+  console.log('[OZD→DDS] ========================================');
+  console.log('[OZD→DDS] Arquivo de origem:', ozdPath);
+  console.log('[OZD→DDS] Pasta de destino:', outputFolder || 'mesma pasta do arquivo');
+  
+  // Lê o arquivo OZD
+  const ozdData = await electronService.readFile(ozdPath);
+  
+  // Descriptografa
+  const { decryptOZD } = await import('./ozd');
+  const result = decryptOZD(ozdData);
+  
+  if (!result.success || !result.data) {
+    throw new Error(result.error || 'Falha ao descriptografar OZD');
+  }
+  
+  console.log('[OZD→DDS] Descriptografia bem-sucedida!');
+  if (result.key !== undefined) {
+    console.log('[OZD→DDS] Chave XOR usada:', '0x' + result.key.toString(16).padStart(2, '0'));
+  }
+  
+  // Define o caminho de saída
+  const filename = (await electronService.getBasename(ozdPath)).replace(/\.ozd$/i, '.dds');
+  const outputPath = outputFolder 
+    ? await electronService.joinPath(outputFolder, filename)
+    : ozdPath.replace(/\.ozd$/i, '.dds');
+  
+  console.log('[OZD→DDS] Nome do arquivo:', filename);
+  console.log('[OZD→DDS] Caminho completo:', outputPath);
+  
+  // Salva o DDS
+  await electronService.writeFile(outputPath, result.data);
+  
+  // Verifica se o arquivo foi criado
+  const stats = await electronService.getFileStats(outputPath);
+  console.log('[OZD→DDS] Arquivo DDS criado com sucesso!');
+  console.log('[OZD→DDS] Tamanho verificado:', stats.size, 'bytes');
+  console.log('[OZD→DDS] Localizacao:', outputPath);
+  console.log('[OZD→DDS] ========================================');
 }

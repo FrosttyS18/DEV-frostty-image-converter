@@ -17,6 +17,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getFileStats: (filePath) => ipcRenderer.invoke('get-file-stats', filePath),
   generateThumbnail: (filePath) => ipcRenderer.invoke('generate-thumbnail', filePath),
   
+  // Converters
+  convertOzdToDds: (params) => ipcRenderer.invoke('convert-ozd-to-dds', params),
+  
   // Path utilities (via IPC)
   pathJoin: (...paths) => ipcRenderer.invoke('path-join', paths),
   pathExtname: (filePath) => ipcRenderer.invoke('path-extname', filePath),
