@@ -14,11 +14,32 @@ const Canvas = ({ currentPreview }: CanvasProps) => {
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   
-  // Reset zoom quando mudar de arquivo
+  // Auto-fit: Calcula zoom inicial para imagem caber no canvas
   useEffect(() => {
-    setZoom(1);
-    setPosition({ x: 0, y: 0 });
-  }, [currentPreview]);
+    if (!imageInfo || !containerRef.current) {
+      setZoom(1);
+      setPosition({ x: 0, y: 0 });
+      return;
+    }
+    
+    const container = containerRef.current;
+    const containerWidth = container.clientWidth - 64; // Padding
+    const containerHeight = container.clientHeight - 64;
+    
+    // Calcula zoom para caber (usa o menor entre width e height)
+    const scaleX = containerWidth / imageInfo.width;
+    const scaleY = containerHeight / imageInfo.height;
+    const autoZoom = Math.min(scaleX, scaleY, 1); // Máximo 1 (100%)
+    
+    console.log('[Canvas] Auto-fit calculado:', {
+      containerSize: `${containerWidth}x${containerHeight}`,
+      imageSize: `${imageInfo.width}x${imageInfo.height}`,
+      zoom: `${Math.round(autoZoom * 100)}%`
+    });
+    
+    setZoom(autoZoom);
+    setPosition({ x: 0, y: 0 }); // Centraliza
+  }, [imageInfo]);
   
   // Listener para tecla ESPACO (pan mode como Photoshop)
   useEffect(() => {
@@ -67,27 +88,41 @@ const Canvas = ({ currentPreview }: CanvasProps) => {
     return () => container.removeEventListener('wheel', handleWheel);
   }, []);
   
-  // Pan/arrastar quando zoom > 1 OU quando ESPACO pressionado
+  // Pan/arrastar: ESPACO + clique esquerdo para caminhar
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (zoom > 1 || isSpacePressed) {
+    // Só ativa pan se ESPACO estiver pressionado OU se zoom > 1
+    if (isSpacePressed || zoom > 1) {
+      e.preventDefault();
       setIsDragging(true);
-      setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
+      setDragStart({ 
+        x: e.clientX, 
+        y: e.clientY 
+      });
     }
   };
   
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (isDragging && (zoom > 1 || isSpacePressed)) {
-      setPosition({
-        x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y
+    if (isDragging) {
+      // Calcula quanto o mouse moveu desde o início do drag
+      const deltaX = e.clientX - dragStart.x;
+      const deltaY = e.clientY - dragStart.y;
+      
+      // Atualiza a posição (movimento relativo)
+      setPosition(prev => ({
+        x: prev.x + deltaX,
+        y: prev.y + deltaY
+      }));
+      
+      // Atualiza o ponto de início para o próximo frame
+      setDragStart({
+        x: e.clientX,
+        y: e.clientY
       });
     }
   };
   
   const handleMouseUp = () => {
-    if (!isSpacePressed) {
-      setIsDragging(false);
-    }
+    setIsDragging(false);
   };
 
   return (
@@ -105,7 +140,7 @@ const Canvas = ({ currentPreview }: CanvasProps) => {
       {/* Canvas área */}
       <div 
         ref={containerRef}
-        className="glass rounded-2xl flex-1 p-8 flex items-center justify-center overflow-auto relative"
+        className="glass rounded-2xl flex-1 p-8 flex items-center justify-center overflow-hidden relative"
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
