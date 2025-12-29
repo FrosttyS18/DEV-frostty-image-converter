@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Análise de Arquivo OZJ</title>
+  <style>
+    body {
+      font-family: monospace;
+      padding: 20px;
+      background: #1e1e1e;
+      color: #d4d4d4;
+    }
+    .section {
+      margin: 20px 0;
+      padding: 10px;
+      background: #252526;
+      border-radius: 5px;
+    }
+    .hex {
+      color: #4ec9b0;
+    }
+    .ascii {
+      color: #ce9178;
+    }
+    pre {
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>Análise de Arquivo OZJ do Mu Online</h1>
+  <input type="file" id="fileInput" accept=".ozj">
+  <div id="output"></div>
+
+  <script>
+    document.getElementById('fileInput').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const buffer = await file.arrayBuffer();
+      const bytes = new Uint8Array(buffer);
+      
+      let html = `<div class="section"><strong>Arquivo:</strong> ${file.name} (${file.size} bytes)</div>`;
+
+      // Mostra os primeiros 512 bytes em hexadecimal
+      html += '<div class="section">';
+      html += '<h2>Primeiros 512 bytes (Hexadecimal)</h2>';
+      html += '<pre class="hex">';
+      
+      const bytesToShow = Math.min(512, bytes.length);
+      for (let i = 0; i < bytesToShow; i += 16) {
+        const offset = i.toString(16).padStart(8, '0');
+        const hexPart = [];
+        const asciiPart = [];
+        
+        for (let j = 0; j < 16 && i + j < bytesToShow; j++) {
+          const byte = bytes[i + j];
+          hexPart.push(byte.toString(16).padStart(2, '0'));
+          asciiPart.push(byte >= 32 && byte <= 126 ? String.fromCharCode(byte) : '.');
+        }
+        
+        html += `${offset}  ${hexPart.join(' ')}  |${asciiPart.join('')}|\n`;
+      }
+      
+      html += '</pre></div>';
+
+      // Análise de possíveis cabeçalhos
+      html += '<div class="section">';
+      html += '<h2>Análise de Cabeçalho</h2>';
+      html += '<pre>';
+      
+      // Primeiros 4 bytes
+      html += `Bytes 0-3: ${bytes[0].toString(16)} ${bytes[1].toString(16)} ${bytes[2].toString(16)} ${bytes[3].toString(16)}\n`;
+      html += `Interpretação como uint32 (LE): ${new DataView(buffer).getUint32(0, true)}\n`;
+      html += `Interpretação como uint32 (BE): ${new DataView(buffer).getUint32(0, false)}\n\n`;
+      
+      // Bytes 4-7
+      if (bytes.length >= 8) {
+        html += `Bytes 4-7: ${bytes[4].toString(16)} ${bytes[5].toString(16)} ${bytes[6].toString(16)} ${bytes[7].toString(16)}\n`;
+        html += `Interpretação como uint32 (LE): ${new DataView(buffer).getUint32(4, true)}\n`;
+        html += `Interpretação como uint32 (BE): ${new DataView(buffer).getUint32(4, false)}\n\n`;
+      }
+
+      // Verifica magic numbers conhecidos
+      html += '\n--- Magic Numbers Detectados ---\n';
+      
+      // JPEG: FF D8
+      if (bytes[0] === 0xFF && bytes[1] === 0xD8) {
+        html += '✓ JPEG direto no offset 0\n';
+      }
+      
+      // Zlib: 78 9C / 78 01 / 78 DA / 78 5E
+      if (bytes[0] === 0x78 && (bytes[1] === 0x9C || bytes[1] === 0x01 || bytes[1] === 0xDA || bytes[1] === 0x5E)) {
+        html += '✓ Zlib comprimido no offset 0\n';
+      }
+      
+      // Procura por JPEG em offsets comuns
+      const commonOffsets = [1, 2, 4, 8, 12, 16, 20, 24, 32, 64];
+      for (const offset of commonOffsets) {
+        if (offset + 1 < bytes.length && bytes[offset] === 0xFF && bytes[offset + 1] === 0xD8) {
+          html += `✓ JPEG encontrado no offset ${offset}\n`;
+        }
+        if (offset + 1 < bytes.length && bytes[offset] === 0x78 && 
+            (bytes[offset + 1] === 0x9C || bytes[offset + 1] === 0x01 || 
+             bytes[offset + 1] === 0xDA || bytes[offset + 1] === 0x5E)) {
+          html += `✓ Zlib encontrado no offset ${offset}\n`;
+        }
+      }
+
+      // Testa descompressão com pako
+      html += '\n--- Tentativas de Descompressão ---\n';
+      
+      // Importa pako dinamicamente
+      const pakoScript = document.createElement('script');
+      pakoScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js';
+      document.head.appendChild(pakoScript);
+      
+      await new Promise(resolve => {
+        pakoScript.onload = resolve;
+      });
+
+      // Tenta descomprimir do offset 0
+      try {
+        const decompressed = pako.inflate(bytes);
+        html += `✓ Descompressão do offset 0 bem-sucedida! (${decompressed.length} bytes)\n`;
+        html += `Primeiros 16 bytes descomprimidos: ${Array.from(decompressed.slice(0, 16)).map(b => b.toString(16).padStart(2, '0')).join(' ')}\n`;
+        
+        // Verifica se é JPEG
+        if (decompressed[0] === 0xFF && decompressed[1] === 0xD8) {
+          html += '✓✓ Conteúdo descomprimido é JPEG!\n';
+        }
+      } catch (err) {
+        html += `✗ Descompressão do offset 0 falhou: ${err.message}\n`;
+      }
+
+      // Tenta com offsets
+      for (const offset of [4, 8, 12, 16]) {
+        try {
+          const sliced = bytes.slice(offset);
+          const decompressed = pako.inflate(sliced);
+          html += `✓ Descompressão do offset ${offset} bem-sucedida! (${decompressed.length} bytes)\n`;
+          html += `Primeiros 16 bytes: ${Array.from(decompressed.slice(0, 16)).map(b => b.toString(16).padStart(2, '0')).join(' ')}\n`;
+          
+          if (decompressed[0] === 0xFF && decompressed[1] === 0xD8) {
+            html += '✓✓ Conteúdo descomprimido é JPEG!\n';
+          }
+        } catch (err) {
+          html += `✗ Descompressão do offset ${offset} falhou\n`;
+        }
+      }
+
+      html += '</pre></div>';
+
+      document.getElementById('output').innerHTML = html;
+    });
+  </script>
+</body>
+</html>

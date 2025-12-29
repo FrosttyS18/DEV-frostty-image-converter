@@ -25,24 +25,29 @@ export const useFileSelection = () => {
 
       const files = await electronService.readDirectory(folderPath);
       
+      // Primeiro filtra arquivos por extensão
+      const filteredFiles = [];
+      for (const file of files) {
+        const ext = await electronService.getExtension(file);
+        if (SUPPORTED_EXTENSIONS.includes(ext.toLowerCase() as any)) {
+          filteredFiles.push(file);
+        }
+      }
+      
+      // Depois mapeia para FileInfo
       const fileInfos: FileInfo[] = await Promise.all(
-        files
-          .filter((file: string) => {
-            const ext = electronService.getExtension(file).toLowerCase();
-            return SUPPORTED_EXTENSIONS.includes(ext as any);
-          })
-          .map(async (file: string) => {
-            const filePath = electronService.joinPath(folderPath, file);
-            const stats = await electronService.getFileStats(filePath);
-            const extension = electronService.getExtension(file).toLowerCase();
-            
-            return {
-              path: filePath,
-              name: file,
-              extension,
-              size: stats.size,
-            };
-          })
+        filteredFiles.map(async (file: string) => {
+          const filePath = await electronService.joinPath(folderPath, file);
+          const stats = await electronService.getFileStats(filePath);
+          const extension = await electronService.getExtension(file);
+          
+          return {
+            path: filePath,
+            name: file,
+            extension: extension.toLowerCase(),
+            size: stats.size,
+          };
+        })
       );
 
       // Verifica se encontrou arquivos

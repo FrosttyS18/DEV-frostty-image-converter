@@ -12,7 +12,8 @@ export const useConversion = () => {
 
   const convert = useCallback(async (
     type: ConversionType,
-    files: FileInfo[]
+    files: FileInfo[],
+    outputFolder?: string
   ) => {
     if (files.length === 0) {
       setError('Nenhum arquivo selecionado');
@@ -28,6 +29,7 @@ export const useConversion = () => {
         type,
         files,
         preserveAlpha: true,
+        outputFolder,
       });
 
       setSuccessMessage(`${files.length} arquivo(s) convertido(s) com sucesso!`);

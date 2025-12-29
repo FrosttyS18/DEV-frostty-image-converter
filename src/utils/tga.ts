@@ -16,25 +16,114 @@ interface TGAHeader {
 }
 
 export function decodeTGA(buffer: ArrayBuffer): ImageData {
+  // Validação básica
+  if (!buffer || buffer.byteLength < 18) {
+    throw new Error('Arquivo TGA inválido: muito pequeno (mínimo 18 bytes para header)');
+  }
+  
   const view = new DataView(buffer);
-  let offset = 0;
+  const bytes = new Uint8Array(buffer);
+  
+  // Debug logs (desabilitados)
+  // console.log('[TGA] Buffer size:', buffer.byteLength);
 
-  // Ler cabeçalho TGA
+  // Ler cabeçalho TGA (18 bytes total)
   const header: TGAHeader = {
-    idLength: view.getUint8(offset++),
-    colorMapType: view.getUint8(offset++),
-    imageType: view.getUint8(offset++),
-    colorMapOrigin: view.getUint16(offset, true), 
-    colorMapLength: view.getUint16(offset + 2, true),
-    colorMapDepth: view.getUint8(offset + 4),
-    xOrigin: view.getUint16(offset + 5, true),
-    yOrigin: view.getUint16(offset + 7, true),
-    width: view.getUint16(offset + 9, true),
-    height: view.getUint16(offset + 11, true),
-    bitsPerPixel: view.getUint8(offset + 13),
-    imageDescriptor: view.getUint8(offset + 14),
+    idLength: view.getUint8(0),
+    colorMapType: view.getUint8(1),
+    imageType: view.getUint8(2),
+    colorMapOrigin: view.getUint16(3, true), 
+    colorMapLength: view.getUint16(5, true),
+    colorMapDepth: view.getUint8(7),
+    xOrigin: view.getUint16(8, true),
+    yOrigin: view.getUint16(10, true),
+    width: view.getUint16(12, true),
+    height: view.getUint16(14, true),
+    bitsPerPixel: view.getUint8(16),
+    imageDescriptor: view.getUint8(17),
   };
-  offset += 13;
+  let offset = 18;
+
+  console.log('[TGA] Header parsed:', {
+    width: header.width,
+    height: header.height,
+    bitsPerPixel: header.bitsPerPixel,
+    imageType: header.imageType
+  });
+
+  // Workaround: Tenta calcular dimensões a partir do tamanho do arquivo
+  if (header.width === 0 || header.height === 0) {
+    const dataSize = buffer.byteLength - offset;
+    const bytesPerPixel = header.bitsPerPixel / 8;
+    const totalPixels = dataSize / bytesPerPixel;
+    
+    console.log('[TGA] AVISO: Header sem dimensões válidas!');
+    console.log('[TGA] Tentando calcular dimensões:', {
+      dataSize,
+      bytesPerPixel,
+      totalPixels
+    });
+    
+    // Tenta dimensão quadrada primeiro (mais comum)
+    const squareDimension = Math.sqrt(totalPixels);
+    if (Number.isInteger(squareDimension)) {
+      header.width = squareDimension;
+      header.height = squareDimension;
+      console.log('[TGA] ✓ Imagem quadrada detectada:', squareDimension, 'x', squareDimension);
+    } else {
+      // Tenta dimensões retangulares comuns (16:9, 4:3, 2:1, etc)
+      const commonRatios = [
+        { w: 16, h: 9 },   // 16:9
+        { w: 4, h: 3 },    // 4:3
+        { w: 3, h: 2 },    // 3:2
+        { w: 2, h: 1 },    // 2:1
+        { w: 21, h: 9 },   // 21:9
+        { w: 5, h: 4 },    // 5:4
+        { w: 3, h: 4 },    // 3:4 (vertical)
+        { w: 9, h: 16 },   // 9:16 (vertical)
+      ];
+      
+      let found = false;
+      for (const ratio of commonRatios) {
+        // Tenta múltiplos do ratio
+        for (let multiplier = 1; multiplier <= 200; multiplier++) {
+          const w = ratio.w * multiplier;
+          const h = ratio.h * multiplier;
+          if (w * h === totalPixels) {
+            header.width = w;
+            header.height = h;
+            console.log(`[TGA] ✓ Dimensões encontradas (${ratio.w}:${ratio.h}):`, w, 'x', h);
+            found = true;
+            break;
+          }
+        }
+        if (found) break;
+      }
+      
+      if (!found) {
+        // Última tentativa: fatoração simples
+        for (let w = 1; w <= Math.sqrt(totalPixels) * 2; w++) {
+          if (totalPixels % w === 0) {
+            const h = totalPixels / w;
+            if (w * h === totalPixels && w >= 16 && h >= 16) {
+              header.width = w;
+              header.height = h;
+              console.log('[TGA] ✓ Dimensões calculadas por fatoração:', w, 'x', h);
+              found = true;
+              break;
+            }
+          }
+        }
+      }
+      
+      if (!found) {
+        throw new Error(
+          `Dimensões inválidas no header (${header.width}x${header.height}) ` +
+          `e não foi possível calcular a partir do tamanho do arquivo (${totalPixels} pixels)`
+        );
+      }
+    }
+  }
 
   // Pular ID se existir
   if (header.idLength > 0) {

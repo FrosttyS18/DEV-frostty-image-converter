@@ -7,6 +7,7 @@ import Toast from './components/Toast';
 import { useFileSelection } from './hooks/useFileSelection';
 import { useConversion } from './hooks/useConversion';
 import { useGlowPointer } from './hooks/useGlowPointer';
+import { electronService } from './services/electronService';
 import { ConversionType } from './types';
 
 function App() {
@@ -32,8 +33,33 @@ function App() {
     convert 
   } = useConversion();
 
-  const handleConvert = (type: ConversionType) => {
-    convert(type, selectedFiles);
+  const handleConvert = async (type: ConversionType) => {
+    console.log('[App] Iniciando conversão, tipo:', type);
+    
+    // Pergunta onde salvar
+    console.log('[App] Abrindo seletor de pasta destino...');
+    const outputFolder = await electronService.selectOutputFolder();
+    
+    console.log('[App] Pasta destino selecionada:', outputFolder);
+    
+    if (!outputFolder) {
+      console.log('[App] Usuário cancelou seleção de pasta');
+      return;
+    }
+    
+    // Se tem arquivo no preview, converte APENAS ele
+    if (currentPreview) {
+      const fileToConvert = selectedFiles.find(f => f.path === currentPreview);
+      console.log('[App] Convertendo arquivo do preview:', fileToConvert?.name);
+      if (fileToConvert) {
+        convert(type, [fileToConvert], outputFolder);
+        return;
+      }
+    }
+    
+    // Senão, converte todos
+    console.log('[App] Convertendo todos os arquivos:', selectedFiles.length);
+    convert(type, selectedFiles, outputFolder);
   };
 
   // Controla toasts

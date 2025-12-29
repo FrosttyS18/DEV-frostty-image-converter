@@ -22,7 +22,7 @@ const Canvas = ({ currentPreview, selectedFiles }: CanvasProps) => {
       </div>
       
       {/* Canvas área */}
-      <div className="glass rounded-2xl flex-1 p-8 flex items-center justify-center overflow-hidden">
+      <div className="glass rounded-2xl flex-1 p-8 flex items-center justify-center overflow-auto">
         {isLoading ? (
           <div className="text-center">
             <div className="w-16 h-16 border-4 border-purple-500/20 border-t-purple-500 rounded-full animate-spin mx-auto mb-4"></div>
@@ -38,13 +38,15 @@ const Canvas = ({ currentPreview, selectedFiles }: CanvasProps) => {
             <p className="text-red-400">{error}</p>
           </div>
         ) : previewUrl ? (
-          <div className="relative max-w-full max-h-full flex items-center justify-center">
+          <div className="relative flex items-center justify-center min-w-min min-h-min">
             <img
               src={previewUrl}
               alt="Preview"
-              className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+              className="rounded-lg shadow-2xl"
               style={{
                 imageRendering: 'pixelated',
+                maxWidth: 'none',
+                maxHeight: 'none',
               }}
             />
           </div>

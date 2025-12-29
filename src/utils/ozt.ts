@@ -9,12 +9,47 @@ import { decodeTGA, encodeTGA } from './tga';
 
 export function decodeOZT(buffer: ArrayBuffer): ImageData {
   try {
-    // Descomprimir com zlib
-    const compressed = new Uint8Array(buffer);
-    const decompressed = pako.inflate(compressed);
+    const data = new Uint8Array(buffer);
     
-    // Decodificar TGA
-    return decodeTGA(decompressed.buffer);
+    // Validação básica
+    if (!data || data.length < 18) {
+      throw new Error('Arquivo OZT muito pequeno (mínimo 18 bytes para header TGA)');
+    }
+    
+    // Detecta se está comprimido (zlib magic numbers: 0x78, 0x9C ou 0x78, 0x01, etc)
+    const isCompressed = data.length >= 2 && 
+                        data[0] === 0x78 && 
+                        (data[1] === 0x9C || data[1] === 0x01 || data[1] === 0xDA || data[1] === 0x5E);
+    
+    console.log('[OZT] Arquivo comprimido?', isCompressed);
+    console.log('[OZT] Primeiros bytes:', Array.from(data.slice(0, Math.min(4, data.length))));
+    
+    if (isCompressed) {
+      // Está comprimido: descomprime primeiro
+      console.log('[OZT] Descomprimindo com zlib...');
+      const decompressed = pako.inflate(data);
+      return decodeTGA(decompressed.buffer);
+    } else {
+      // Formato customizado do Mu Online: header TGA começa no byte 4
+      // Tenta offset 4 primeiro (mais comum), depois outros
+      const offsets = [4, 0, 2, 8, 16, 32];
+      
+      for (const skipBytes of offsets) {
+        try {
+          const offsetBuffer = buffer.slice(skipBytes);
+          const result = decodeTGA(offsetBuffer);
+          if (skipBytes > 0) {
+            console.log(`[OZT] Arquivo usa offset ${skipBytes} bytes (formato Mu Online)`);
+          }
+          return result;
+        } catch (err) {
+          // Tenta próximo offset silenciosamente
+        }
+      }
+      
+      // Se nenhum offset funcionou, lança erro
+      throw new Error('Não consegui encontrar header TGA válido no arquivo');
+    }
   } catch (error) {
     console.error('Erro ao decodificar OZT:', error);
     throw new Error(`Falha ao decodificar OZT: ${error}`);

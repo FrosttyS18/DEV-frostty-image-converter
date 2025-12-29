@@ -16,6 +16,7 @@ export interface ConversionOptions {
   type: ConversionType;
   files: FileInfo[];
   preserveAlpha: boolean;
+  outputFolder?: string;
 }
 
 export interface ImageData {

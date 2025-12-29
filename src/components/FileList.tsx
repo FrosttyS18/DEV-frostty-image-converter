@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { FileInfo } from '../types';
 import { EXTENSION_COLORS } from '../constants/formats';
 import { formatFileSize } from '../utils/formatters';
@@ -8,23 +9,39 @@ interface FileListProps {
 }
 
 const FileList = ({ files, onFileSelect }: FileListProps) => {
+  const [search, setSearch] = useState('');
+  
   const getExtensionColor = (ext: string): string => {
     return EXTENSION_COLORS[ext.toLowerCase()] || 'text-gray-400';
   };
 
+  const filteredFiles = files.filter(f => 
+    f.name.toLowerCase().includes(search.toLowerCase()) ||
+    f.extension.toLowerCase().includes(search.toLowerCase())
+  );
+
   return (
-    <div className="glass rounded-2xl p-4 flex-1 overflow-hidden flex flex-col">
-      <h3 className="text-white font-semibold mb-3 text-sm">
-        Arquivos ({files.length})
+    <div data-glow className="glass rounded-2xl p-4 flex-1 overflow-hidden flex flex-col">
+      <h3 className="text-white font-semibold mb-2 text-sm">
+        Arquivos ({filteredFiles.length}/{files.length})
       </h3>
       
+      {/* Busca */}
+      <input
+        type="text"
+        placeholder="Buscar... (ex: .tga, .png)"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="w-full mb-3 px-3 py-2 bg-black/30 border border-white/10 rounded-lg text-white text-xs placeholder:text-white/40 focus:outline-none focus:border-purple-500/50"
+      />
+      
       <div className="flex-1 overflow-y-auto space-y-2">
-        {files.length === 0 ? (
+        {filteredFiles.length === 0 ? (
           <div className="text-gray-400 text-sm text-center py-8">
-            Nenhum arquivo selecionado
+            {files.length === 0 ? 'Nenhum arquivo selecionado' : 'Nenhum arquivo encontrado'}
           </div>
         ) : (
-          files.map((file, index) => (
+          filteredFiles.map((file, index) => (
             <div
               key={index}
               onClick={() => onFileSelect(file.path)}
