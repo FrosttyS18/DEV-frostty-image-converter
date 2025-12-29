@@ -7,8 +7,9 @@ function createWindow() {
     height: 900,
     minWidth: 1200,
     minHeight: 700,
-    frame: true,
+    frame: false, // Remove o menu e barra de título
     backgroundColor: '#0A0A0F',
+    transparent: true,
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,

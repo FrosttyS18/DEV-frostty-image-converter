@@ -78,3 +78,162 @@ code {
 .glow-purple-strong {
   box-shadow: 0 0 30px rgba(123, 63, 242, 0.5);
 }
+
+/* =====================================
+   PREMIUM BUTTON STYLES - DEU Frostty
+   Baseado no mu-server-manager
+   ===================================== */
+
+:root {
+  /* Brand */
+  --sm-primary: 123, 63, 242; /* Roxo do DEU Frostty */
+
+  /* Rainbow spectrum (gradiente colorido dos botões) */
+  --sm-btn-spectrum: linear-gradient(
+    to right,
+    rgba(255,255,255,1),
+    rgba(255,255,255,1),
+    rgba(0,255,255,1),
+    rgba(0,160,255,1),
+    rgba(123,63,242,1),
+    rgba(147,51,234,1),
+    rgba(168,85,247,1),
+    rgba(255,255,255,1),
+    rgba(255,255,255,1)
+  );
+
+  /* Glass controls */
+  --sm-glass-alpha: .38;
+  --sm-glass-blur: 54px;
+  --sm-glass-border: rgba(255, 255, 255, 0.1);
+}
+
+/* Base button styling - PREMIUM RAINBOW EFFECT */
+.sm-sidebar-btn,
+.premium-btn {
+  position: relative;
+  isolation: isolate;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(0, 0, 0, 0.25);
+  box-shadow: none;
+  overflow: visible;
+  transition: transform 200ms cubic-bezier(.2,.8,.2,1), 
+              filter 180ms ease, 
+              border-color 180ms ease;
+  
+  /* Tunables */
+  --sm-btn-border: 2px;
+  --sm-btn-glow-blur: 80px;
+  --sm-btn-glow-opacity: 0;
+  --sm-btn-outline-opacity: 0;
+  --sm-btn-walk-ms: 2600ms;
+}
+
+/* Conteúdo do botão acima dos pseudo-elementos */
+.sm-sidebar-btn > *,
+.premium-btn > * {
+  position: relative;
+  z-index: 2;
+}
+
+/* Blurred glow (anel externo) */
+.sm-sidebar-btn::after,
+.premium-btn::after {
+  content: "";
+  position: absolute;
+  inset: calc((var(--sm-btn-border) + 2px) * -1);
+  border-radius: calc(12px + var(--sm-btn-border) + 2px);
+  padding: calc(var(--sm-btn-border) + 2px);
+  box-sizing: border-box;
+  background: var(--sm-btn-spectrum) no-repeat 100% 0 / 900% 100%;
+  filter: blur(var(--sm-btn-glow-blur));
+  opacity: var(--sm-btn-glow-opacity);
+  z-index: 0;
+  pointer-events: none;
+  
+  /* Máscara para criar efeito de anel */
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+/* Crisp outline (anel interno nítido) */
+.sm-sidebar-btn::before,
+.premium-btn::before {
+  content: "";
+  position: absolute;
+  inset: calc(var(--sm-btn-border) * -1);
+  border-radius: calc(12px + var(--sm-btn-border));
+  padding: var(--sm-btn-border);
+  box-sizing: border-box;
+  background: var(--sm-btn-spectrum) no-repeat 100% 0 / 900% 100%;
+  opacity: var(--sm-btn-outline-opacity);
+  z-index: 1;
+  pointer-events: none;
+  
+  /* Máscara para criar efeito de anel */
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+/* Hover/Focus - Ativa o efeito rainbow + aura */
+.sm-sidebar-btn:not(:disabled):hover,
+.sm-sidebar-btn:not(:disabled):focus-visible,
+.premium-btn:not(:disabled):hover,
+.premium-btn:not(:disabled):focus-visible {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+  border-color: rgba(var(--sm-primary), .55);
+  
+  /* AURA AZUL/ROXA - Efeito de brilho */
+  box-shadow:
+    0 0 0 1px rgba(var(--sm-primary), .65),
+    0 0 18px rgba(var(--sm-primary), .38),
+    0 0 42px rgba(var(--sm-primary), .30);
+  
+  --sm-btn-outline-opacity: 1;
+  --sm-btn-glow-opacity: .32;
+}
+
+/* Animação "walking" do gradiente */
+.sm-sidebar-btn:not(:disabled):hover::before,
+.sm-sidebar-btn:not(:disabled):hover::after,
+.sm-sidebar-btn:not(:disabled):focus-visible::before,
+.sm-sidebar-btn:not(:disabled):focus-visible::after,
+.premium-btn:not(:disabled):hover::before,
+.premium-btn:not(:disabled):hover::after,
+.premium-btn:not(:disabled):focus-visible::before,
+.premium-btn:not(:disabled):focus-visible::after {
+  animation: smBtnWalk var(--sm-btn-walk-ms) linear infinite;
+}
+
+/* Keyframe da animação walking */
+@keyframes smBtnWalk {
+  from { background-position: 100% 0; }
+  to { background-position: 0% 0; }
+}
+
+/* Active - Efeito de pressionar */
+.sm-sidebar-btn:not(:disabled):active,
+.premium-btn:not(:disabled):active {
+  transform: translateY(0px) scale(.99);
+  filter: brightness(1.02);
+  --sm-btn-glow-opacity: .52;
+}
+
+/* Disabled - Estado desabilitado */
+.sm-sidebar-btn:disabled,
+.premium-btn:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.sm-sidebar-btn:disabled::before,
+.sm-sidebar-btn:disabled::after,
+.premium-btn:disabled::before,
+.premium-btn:disabled::after {
+  opacity: 0;
+  animation: none;
+}
