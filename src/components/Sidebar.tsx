@@ -77,12 +77,15 @@ const Sidebar = ({
   };
 
   return (
-    <div className="w-80 flex flex-col gap-4 animate-fade-in">
+    <div className="w-80 glass rounded-2xl p-4 flex flex-col animate-fade-in">
       {/* Logo */}
       <Logo />
       
+      {/* Separador sutil */}
+      <div className="h-px bg-gradient-to-r from-transparent via-purple-500/30 to-transparent my-2" />
+      
       {/* Botões de ação */}
-      <div className="glass rounded-2xl p-4 flex flex-col gap-3">
+      <div className="flex flex-col gap-3">
         <Button 
           onClick={handleSelectFolder}
           disabled={isConverting}
