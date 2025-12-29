@@ -61,12 +61,26 @@ ipcMain.handle('select-folder', async () => {
   }
 });
 
-// Abre janela de lista de arquivos
+// Abre ou atualiza janela de lista de arquivos
 function openFileListWindow(folderPath) {
-  // Se ja existe, fecha a anterior
+  // Se ja existe, REUTILIZA e apenas atualiza o conteudo
   if (fileListWindow && !fileListWindow.isDestroyed()) {
-    fileListWindow.close();
+    console.log('[Main] Reutilizando janela de lista existente');
+    
+    // Atualiza os arquivos
+    updateFileList(folderPath);
+    
+    // Traz para frente se estava minimizada ou atras
+    if (fileListWindow.isMinimized()) {
+      fileListWindow.restore();
+    }
+    fileListWindow.focus();
+    
+    return;
   }
+  
+  // Cria nova janela
+  console.log('[Main] Criando nova janela de lista');
   
   const preloadPath = path.resolve(__dirname, './preload.cjs');
   
@@ -91,35 +105,43 @@ function openFileListWindow(folderPath) {
   
   // Quando carregar, envia os arquivos
   fileListWindow.webContents.on('did-finish-load', () => {
-    try {
-      const files = fs.readdirSync(folderPath);
-      const supportedExtensions = ['.tga', '.png', '.ozj', '.ozt', '.ozb', '.ozd', '.jpg', '.jpeg'];
-      
-      const fileList = files
-        .filter(file => {
-          const ext = path.extname(file).toLowerCase();
-          return supportedExtensions.includes(ext);
-        })
-        .map(file => {
-          const filePath = path.join(folderPath, file);
-          const stats = fs.statSync(filePath);
-          return {
-            name: file,
-            path: filePath,
-            size: stats.size,
-            extension: path.extname(file)
-          };
-        });
-      
-      fileListWindow.webContents.send('files-loaded', fileList, folderPath);
-    } catch (err) {
-      console.error('[Main] Erro ao ler pasta:', err);
-    }
+    updateFileList(folderPath);
   });
   
   fileListWindow.on('closed', () => {
     fileListWindow = null;
   });
+}
+
+// Funcao auxiliar para atualizar lista de arquivos
+function updateFileList(folderPath) {
+  if (!fileListWindow || fileListWindow.isDestroyed()) return;
+  
+  try {
+    const files = fs.readdirSync(folderPath);
+    const supportedExtensions = ['.tga', '.png', '.ozj', '.ozt', '.ozb', '.ozd', '.jpg', '.jpeg'];
+    
+    const fileList = files
+      .filter(file => {
+        const ext = path.extname(file).toLowerCase();
+        return supportedExtensions.includes(ext);
+      })
+      .map(file => {
+        const filePath = path.join(folderPath, file);
+        const stats = fs.statSync(filePath);
+        return {
+          name: file,
+          path: filePath,
+          size: stats.size,
+          extension: path.extname(file)
+        };
+      });
+    
+    fileListWindow.webContents.send('files-loaded', fileList, folderPath);
+    console.log(`[Main] Lista atualizada: ${fileList.length} arquivos`);
+  } catch (err) {
+    console.error('[Main] Erro ao ler pasta:', err);
+  }
 }
 
 // Handler quando arquivo eh selecionado na lista

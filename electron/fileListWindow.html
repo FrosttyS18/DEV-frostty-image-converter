@@ -148,8 +148,47 @@
       transition: all 0.2s;
       border: 1px solid transparent;
       display: flex;
-      justify-content: space-between;
+      gap: 12px;
       align-items: center;
+    }
+    
+    .file-thumbnail {
+      width: 48px;
+      height: 48px;
+      border-radius: 6px;
+      background: rgba(0, 0, 0, 0.3);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .file-thumbnail img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      image-rendering: pixelated;
+    }
+    
+    .file-thumbnail.loading {
+      background: rgba(139, 92, 246, 0.1);
+    }
+    
+    .file-thumbnail .placeholder {
+      width: 20px;
+      height: 20px;
+      opacity: 0.3;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 0.3; }
+      50% { opacity: 0.6; }
+    }
+    
+    .file-thumbnail.loading .placeholder {
+      animation: pulse 1.5s ease-in-out infinite;
     }
     
     .file-item:hover {
@@ -276,6 +315,32 @@
       window.electronAPI.closeFileListWindow();
     });
     
+    // Sistema de thumbnails com lazy loading
+    const thumbnailCache = new Map(); // Cache de URLs
+    const loadingQueue = [];
+    let currentlyLoading = 0;
+    const MAX_CONCURRENT = 10;
+    const abortControllers = new Map();
+    
+    // Cleanup ao fechar
+    window.addEventListener('beforeunload', () => {
+      console.log('[FileList] Limpando recursos...');
+      
+      // Revoga todos os blob URLs
+      thumbnailCache.forEach(url => {
+        if (url.startsWith('blob:')) {
+          URL.revokeObjectURL(url);
+        }
+      });
+      thumbnailCache.clear();
+      
+      // Cancela operacoes pendentes
+      abortControllers.forEach(controller => controller.abort());
+      abortControllers.clear();
+      
+      console.log('[FileList] Recursos limpos!');
+    });
+    
     // Comunicacao com o processo principal
     let allFiles = [];
     let selectedFile = null;
@@ -314,7 +379,13 @@
       }
       
       fileList.innerHTML = files.map(file => `
-        <div class="file-item" data-path="${file.path}">
+        <div class="file-item" data-path="${file.path}" data-loaded="false">
+          <div class="file-thumbnail" data-file-path="${file.path}">
+            <svg class="placeholder" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </div>
           <div class="file-info">
             <div class="file-name">${file.name}</div>
             <div class="file-size">${formatFileSize(file.size)}</div>

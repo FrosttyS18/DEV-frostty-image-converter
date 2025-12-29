@@ -13,12 +13,14 @@ const Canvas = ({ currentPreview }: CanvasProps) => {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const autoFitZoomRef = useRef<number>(1);
   
   // Auto-fit: Calcula zoom inicial para imagem caber no canvas
   useEffect(() => {
     if (!imageInfo || !containerRef.current) {
       setZoom(1);
       setPosition({ x: 0, y: 0 });
+      autoFitZoomRef.current = 1;
       return;
     }
     
@@ -37,16 +39,26 @@ const Canvas = ({ currentPreview }: CanvasProps) => {
       zoom: `${Math.round(autoZoom * 100)}%`
     });
     
+    autoFitZoomRef.current = autoZoom;
     setZoom(autoZoom);
     setPosition({ x: 0, y: 0 }); // Centraliza
   }, [imageInfo]);
   
-  // Listener para tecla ESPACO (pan mode como Photoshop)
+  // Listener para teclas (ESPACO = pan, Ctrl+0 = auto-fit)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // ESPACO: ativa pan mode
       if (e.code === 'Space' && !e.repeat && previewUrl) {
         e.preventDefault();
         setIsSpacePressed(true);
+      }
+      
+      // Ctrl+0: reseta zoom para auto-fit
+      if (e.ctrlKey && e.key === '0' && previewUrl) {
+        e.preventDefault();
+        console.log('[Canvas] Resetando para auto-fit:', autoFitZoomRef.current);
+        setZoom(autoFitZoomRef.current);
+        setPosition({ x: 0, y: 0 });
       }
     };
     
@@ -67,13 +79,13 @@ const Canvas = ({ currentPreview }: CanvasProps) => {
     };
   }, [previewUrl]);
   
-  // Zoom com Ctrl+Scroll
+  // Zoom com Alt+Scroll (igual Photoshop)
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
     
     const handleWheel = (e: WheelEvent) => {
-      if (e.ctrlKey) {
+      if (e.altKey) {
         e.preventDefault();
         
         const delta = e.deltaY > 0 ? 0.9 : 1.1;
@@ -126,7 +138,7 @@ const Canvas = ({ currentPreview }: CanvasProps) => {
   };
 
   return (
-    <div className="flex-1 flex flex-col gap-4 animate-fade-in">
+    <div className="flex-1 min-w-0 flex flex-col gap-4 animate-fade-in">
       {/* Header */}
       <div className="glass-strong rounded-2xl px-6 py-4">
         <h2 className="text-white text-xl font-semibold">Canvas Visualizador</h2>
@@ -140,7 +152,7 @@ const Canvas = ({ currentPreview }: CanvasProps) => {
       {/* Canvas área */}
       <div 
         ref={containerRef}
-        className="glass rounded-2xl flex-1 p-8 flex items-center justify-center overflow-hidden relative"
+        className="glass rounded-2xl flex-1 min-w-0 min-h-0 p-8 flex items-center justify-center overflow-hidden relative"
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -225,7 +237,7 @@ const Canvas = ({ currentPreview }: CanvasProps) => {
                 Zoom: {Math.round(zoom * 100)}%
               </span>
               <span className="text-purple-500/50 text-xs">
-                Ctrl+Scroll = zoom | Espaco = mover
+                Alt+Scroll = zoom | Espaco = mover | Ctrl+0 = auto-fit
               </span>
             </div>
           )}
