@@ -7,6 +7,7 @@ interface SidebarProps {
   onSelectFolder: () => void;
   onConvert: (type: ConversionType) => void;
   isConverting: boolean;
+  currentConversionType: ConversionType | null;
   hasFiles: boolean;
 }
 
@@ -14,6 +15,7 @@ const Sidebar = ({
   onSelectFolder,
   onConvert,
   isConverting,
+  currentConversionType,
   hasFiles,
 }: SidebarProps) => {
 
@@ -34,28 +36,26 @@ const Sidebar = ({
           Selecionar Pasta
         </Button>
         
-        {CONVERSIONS.map((conversion) => (
-          <Button
-            key={conversion.type}
-            onClick={() => onConvert(conversion.type as ConversionType)}
-            disabled={isConverting || !hasFiles}
-          >
-            {isConverting ? 'Convertendo...' : conversion.label}
-          </Button>
-        ))}
+        {CONVERSIONS.map((conversion) => {
+          const isThisConverting = isConverting && currentConversionType === conversion.type;
+          return (
+            <Button
+              key={conversion.type}
+              onClick={() => onConvert(conversion.type as ConversionType)}
+              disabled={isConverting || !hasFiles}
+            >
+              {isThisConverting ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="inline-block w-4 h-4 border-2 border-purple-400/30 border-t-purple-400 rounded-full animate-spin" />
+                  Convertendo...
+                </span>
+              ) : (
+                conversion.label
+              )}
+            </Button>
+          );
+        })}
       </div>
-      
-      {/* Info */}
-      {hasFiles && (
-        <div className="mt-6 glass-strong rounded-xl p-4 text-center">
-          <p className="text-purple-300 text-sm">
-            Arquivos carregados!
-          </p>
-          <p className="text-purple-400/60 text-xs mt-1">
-            Selecione na janela de lista
-          </p>
-        </div>
-      )}
     </div>
   );
 };

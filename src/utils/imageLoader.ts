@@ -48,8 +48,6 @@ export async function loadImageAsDataUrl(filePath: string): Promise<string> {
         return await tgaToDataURL(arrayBuffer as ArrayBuffer);
         
       case '.ozt':
-      case '.ozb':
-      case '.ozd':
         if (uint8Array.length < 18) {
           throw new Error('Arquivo OZT muito pequeno');
         }

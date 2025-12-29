@@ -13,7 +13,11 @@ function App() {
   const [currentPreview, setCurrentPreview] = useState<string | null>(null);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [showErrorToast, setShowErrorToast] = useState(false);
+  const [showInfoToast, setShowInfoToast] = useState(false);
+  const [infoMessage, setInfoMessage] = useState<string>('');
   const [selectedFiles, setSelectedFiles] = useState<FileInfo[]>([]);
+  const [currentConversionType, setCurrentConversionType] = useState<ConversionType | null>(null);
+  const [hasLoadedFilesBefore, setHasLoadedFilesBefore] = useState(false);
   
   // Spotlight effect
   useGlowPointer();
@@ -45,6 +49,15 @@ function App() {
     
     // A janela de lista sera aberta automaticamente pelo main.js
     console.log('[App] Pasta selecionada, janela de lista aberta');
+    
+    // Mostra toast apropriado
+    if (hasLoadedFilesBefore) {
+      setInfoMessage('Lista atualizada!');
+    } else {
+      setInfoMessage('Pasta carregada!');
+      setHasLoadedFilesBefore(true);
+    }
+    setShowInfoToast(true);
   };
 
   const handleConvert = async (type: ConversionType) => {
@@ -54,12 +67,14 @@ function App() {
     }
     
     console.log('[App] Iniciando conversao, tipo:', type);
+    setCurrentConversionType(type);
     
     // Pergunta onde salvar
     const outputFolder = await electronService.selectOutputFolder();
     
     if (!outputFolder) {
       console.log('[App] Usuario cancelou selecao de pasta');
+      setCurrentConversionType(null);
       return;
     }
     
@@ -76,7 +91,8 @@ function App() {
     };
     
     console.log('[App] Convertendo arquivo:', fileToConvert.name);
-    convert(type, [fileToConvert], outputFolder);
+    await convert(type, [fileToConvert], outputFolder);
+    setCurrentConversionType(null);
   };
 
   // Controla toasts
@@ -103,6 +119,7 @@ function App() {
           onSelectFolder={selectFolder}
           onConvert={handleConvert}
           isConverting={isConverting}
+          currentConversionType={currentConversionType}
           hasFiles={currentPreview !== null}
         />
         
@@ -124,10 +141,19 @@ function App() {
       
       {showErrorToast && (
         <Toast
-          message={conversionError || (!currentPreview ? 'Selecione um arquivo na janela de lista' : 'Erro desconhecido')}
+          message={conversionError || (!currentPreview ? 'Selecione um arquivo primeiro' : 'Erro desconhecido')}
           type="error"
           onClose={() => setShowErrorToast(false)}
-          duration={5000}
+          duration={4000}
+        />
+      )}
+      
+      {showInfoToast && infoMessage && (
+        <Toast
+          message={infoMessage}
+          type="info"
+          onClose={() => setShowInfoToast(false)}
+          duration={4000}
         />
       )}
     </div>

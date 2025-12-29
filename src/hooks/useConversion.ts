@@ -15,7 +15,13 @@ export const useConversion = () => {
     files: FileInfo[],
     outputFolder?: string
   ) => {
+    console.log('[useConversion] Iniciando conversao...');
+    console.log('[useConversion] Tipo:', type);
+    console.log('[useConversion] Arquivos:', files.length);
+    console.log('[useConversion] Pasta saida:', outputFolder);
+    
     if (files.length === 0) {
+      console.error('[useConversion] Nenhum arquivo selecionado!');
       setError('Nenhum arquivo selecionado');
       return;
     }
@@ -25,6 +31,7 @@ export const useConversion = () => {
     setSuccessMessage(null);
 
     try {
+      console.log('[useConversion] Chamando convertFiles...');
       await convertFiles({
         type,
         files,
@@ -32,7 +39,8 @@ export const useConversion = () => {
         outputFolder,
       });
 
-      setSuccessMessage(`${files.length} arquivo(s) convertido(s) com sucesso!`);
+      console.log('[useConversion] Conversao concluida com sucesso!');
+      setSuccessMessage(files.length === 1 ? 'Arquivo convertido!' : `${files.length} arquivos convertidos!`);
       
       // Limpar mensagem após 3s
       setTimeout(() => {
@@ -40,12 +48,14 @@ export const useConversion = () => {
       }, 3000);
       
     } catch (err) {
+      console.error('[useConversion] ERRO durante conversao:', err);
       const errorMessage = err instanceof Error 
         ? err.message 
         : 'Erro ao converter arquivos';
       setError(errorMessage);
       console.error('[useConversion] Error:', err);
     } finally {
+      console.log('[useConversion] Finalizando (isConverting = false)');
       setIsConverting(false);
     }
   }, []);

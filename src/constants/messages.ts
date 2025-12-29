@@ -17,7 +17,7 @@ export const MESSAGES = {
     FILE_READ_ERROR: 'Não conseguimos abrir este arquivo. Ele pode estar corrompido ou em uso por outro programa.',
     FOLDER_READ_ERROR: 'Não foi possível acessar esta pasta. Verifique se você tem permissão para ler os arquivos.',
     NO_FILES_SELECTED: 'Você precisa selecionar arquivos primeiro. Clique em "Selecionar Pasta" para começar.',
-    INVALID_FORMAT: 'Este formato não é suportado. Use PNG, TGA, OZT, OZJ, OZB ou OZD.',
+    INVALID_FORMAT: 'Este formato não é suportado. Use PNG, TGA, OZT ou OZJ.',
     ELECTRON_NOT_AVAILABLE: 'Esta função só funciona na versão desktop do aplicativo.',
     PERMISSION_DENIED: 'Sem permissão para salvar arquivos nesta pasta. Escolha outra localização.',
     FILE_IN_USE: 'Este arquivo está sendo usado por outro programa. Feche-o e tente novamente.',
@@ -27,7 +27,7 @@ export const MESSAGES = {
   WARNING: {
     NO_FILES_TO_CONVERT: 'Selecione pelo menos um arquivo antes de converter.',
     SELECT_FOLDER_FIRST: 'Primeiro você precisa selecionar uma pasta com arquivos do Mu Online.',
-    EMPTY_FOLDER: 'Esta pasta não contém arquivos compatíveis (PNG, TGA, OZT, OZJ).',
+    EMPTY_FOLDER: 'Esta pasta não contém arquivos compatíveis (PNG, TGA, OZT ou OZJ).',
   },
 
   // Loading

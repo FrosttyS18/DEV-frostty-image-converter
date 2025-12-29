@@ -5,17 +5,24 @@ import { decodeOZJ } from './ozj';
 import { electronService } from '../services/electronService';
 
 export async function convertFiles(options: ConversionOptions): Promise<void> {
+  console.log('[convertFiles] Iniciando conversao em lote...');
   const { type, files, preserveAlpha, outputFolder } = options;
+  
+  console.log(`[convertFiles] Total de ${files.length} arquivo(s) para converter`);
 
-  for (const file of files) {
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
     try {
+      console.log(`[convertFiles] Convertendo ${i + 1}/${files.length}: ${file.name}`);
       await convertFile(file.path, type, preserveAlpha, outputFolder);
-      console.log(`Convertido: ${file.name}`);
+      console.log(`[convertFiles] OK - Convertido: ${file.name}`);
     } catch (error) {
-      console.error(`Erro ao converter ${file.name}:`, error);
+      console.error(`[convertFiles] ERRO ao converter ${file.name}:`, error);
       throw error;
     }
   }
+  
+  console.log('[convertFiles] Conversao em lote concluida!');
 }
 
 async function convertFile(
@@ -24,8 +31,13 @@ async function convertFile(
   preserveAlpha: boolean,
   outputFolder?: string
 ): Promise<void> {
+  console.log(`[convertFile] Arquivo: ${filePath}`);
+  console.log(`[convertFile] Tipo conversao: ${type}`);
+  
   const ext = (await electronService.getExtension(filePath)).toLowerCase();
   const filename = await electronService.getBasename(filePath);
+  
+  console.log(`[convertFile] Extensao: ${ext}, Nome: ${filename}`);
   
   switch (type) {
     case 'PNG_TO_TGA':
@@ -57,8 +69,8 @@ async function convertFile(
       break;
       
     case 'OZT_TO_TGA':
-      if (ext !== '.ozt' && ext !== '.ozb') {
-        throw new Error(`Arquivo "${filename}" não é OZT/OZB. Conversão OZT→TGA requer arquivos .ozt ou .ozb`);
+      if (ext !== '.ozt') {
+        throw new Error(`Arquivo "${filename}" não é OZT. Conversão OZT→TGA requer arquivos .ozt`);
       }
       await oztToTga(filePath, outputFolder);
       break;
@@ -349,10 +361,10 @@ async function oztToTga(oztPath: string, outputFolder?: string): Promise<void> {
   
   const tgaBuffer = encodeTGA(imageData);
   
-  const filename = (await electronService.getBasename(oztPath)).replace(/\.(ozt|ozb|ozd)$/i, '.tga');
+  const filename = (await electronService.getBasename(oztPath)).replace(/\.ozt$/i, '.tga');
   const outputPath = outputFolder 
     ? await electronService.joinPath(outputFolder, filename)
-    : oztPath.replace(/\.(ozt|ozb|ozd)$/i, '.tga');
+    : oztPath.replace(/\.ozt$/i, '.tga');
   
   console.log('[OZT→TGA] ========================================');
   console.log('[OZT→TGA] Arquivo de origem:', oztPath);

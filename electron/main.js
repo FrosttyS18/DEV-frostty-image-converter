@@ -31,6 +31,51 @@ ipcMain.on('window-close', () => {
   app.quit();
 });
 
+// IPC Handlers para janela de lista de arquivos
+ipcMain.on('filelist-window-minimize', () => {
+  if (fileListWindow) fileListWindow.minimize();
+});
+
+ipcMain.on('filelist-window-maximize', () => {
+  if (fileListWindow) {
+    if (fileListWindow.isMaximized()) {
+      fileListWindow.unmaximize();
+    } else {
+      fileListWindow.maximize();
+    }
+  }
+});
+
+ipcMain.on('filelist-window-close', () => {
+  if (fileListWindow) {
+    fileListWindow.close();
+    fileListWindow = null;
+  }
+});
+
+// Handler para redimensionamento manual da janela de arquivos
+ipcMain.on('filelist-window-resize', (event, { width, height }) => {
+  if (fileListWindow && !fileListWindow.isDestroyed()) {
+    const [currentWidth, currentHeight] = fileListWindow.getSize();
+    const newWidth = Math.max(500, width || currentWidth);
+    const newHeight = Math.max(600, height || currentHeight);
+    fileListWindow.setSize(newWidth, newHeight);
+  }
+});
+
+ipcMain.on('filelist-window-set-bounds', (event, bounds) => {
+  if (fileListWindow && !fileListWindow.isDestroyed()) {
+    fileListWindow.setBounds(bounds);
+  }
+});
+
+ipcMain.handle('get-window-bounds', () => {
+  if (fileListWindow && !fileListWindow.isDestroyed()) {
+    return fileListWindow.getBounds();
+  }
+  return null;
+});
+
 // Handler para selecionar pasta de origem e abrir janela de lista
 ipcMain.handle('select-folder', async () => {
   try {
@@ -85,10 +130,11 @@ function openFileListWindow(folderPath) {
   const preloadPath = path.resolve(__dirname, './preload.cjs');
   
   fileListWindow = new BrowserWindow({
-    width: 500,
-    height: 700,
-    minWidth: 400,
-    minHeight: 500,
+    width: 700,
+    height: 850,
+    minWidth: 500,
+    minHeight: 600,
+    resizable: true, // Permite redimensionar a janela
     title: 'Lista de Arquivos',
     frame: false,
     transparent: true,
@@ -108,6 +154,15 @@ function openFileListWindow(folderPath) {
     updateFileList(folderPath);
   });
   
+  // Eventos de estado da janela
+  fileListWindow.on('maximize', () => {
+    fileListWindow.webContents.send('window-maximized', true);
+  });
+  
+  fileListWindow.on('unmaximize', () => {
+    fileListWindow.webContents.send('window-maximized', false);
+  });
+  
   fileListWindow.on('closed', () => {
     fileListWindow = null;
   });
@@ -119,7 +174,9 @@ function updateFileList(folderPath) {
   
   try {
     const files = fs.readdirSync(folderPath);
-    const supportedExtensions = ['.tga', '.png', '.ozj', '.ozt', '.ozb', '.ozd', '.jpg', '.jpeg'];
+    const supportedExtensions = ['.tga', '.png', '.ozj', '.ozt', '.jpg', '.jpeg'];
+    // '.ozb' removido - formato muito encriptado que causa travamento
+    // '.ozd' removido - formato não suportado
     
     const fileList = files
       .filter(file => {

@@ -260,6 +260,110 @@
     ::-webkit-scrollbar-thumb:hover {
       background: rgba(139, 92, 246, 0.7);
     }
+    
+    /* Resize handles - áreas de redimensionamento nas bordas */
+    .resize-border {
+      position: fixed;
+      -webkit-app-region: no-drag;
+      z-index: 9998;
+    }
+    
+    .resize-border.top {
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 5px;
+      cursor: ns-resize;
+    }
+    
+    .resize-border.bottom {
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 5px;
+      cursor: ns-resize;
+    }
+    
+    .resize-border.left {
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: 5px;
+      cursor: ew-resize;
+    }
+    
+    .resize-border.right {
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 5px;
+      cursor: ew-resize;
+    }
+    
+    /* Cantos para redimensionamento diagonal */
+    .resize-corner {
+      position: fixed;
+      -webkit-app-region: no-drag;
+      z-index: 9999;
+      width: 15px;
+      height: 15px;
+    }
+    
+    .resize-corner.top-left {
+      top: 0;
+      left: 0;
+      cursor: nwse-resize;
+    }
+    
+    .resize-corner.top-right {
+      top: 0;
+      right: 0;
+      cursor: nesw-resize;
+    }
+    
+    .resize-corner.bottom-left {
+      bottom: 0;
+      left: 0;
+      cursor: nesw-resize;
+    }
+    
+    .resize-corner.bottom-right {
+      bottom: 0;
+      right: 0;
+      cursor: nwse-resize;
+    }
+    
+    /* Grip visual no canto inferior direito */
+    .resize-handle {
+      position: fixed;
+      bottom: 0;
+      right: 0;
+      width: 20px;
+      height: 20px;
+      z-index: 10000;
+      display: flex;
+      align-items: flex-end;
+      justify-content: flex-end;
+      padding: 2px;
+      pointer-events: none;
+    }
+    
+    .resize-handle::before {
+      content: '';
+      width: 16px;
+      height: 16px;
+      background-image: 
+        linear-gradient(135deg, transparent 0%, transparent 40%, rgba(255, 255, 255, 0.2) 40%, rgba(255, 255, 255, 0.2) 45%, transparent 45%, transparent 100%),
+        linear-gradient(135deg, transparent 0%, transparent 50%, rgba(255, 255, 255, 0.2) 50%, rgba(255, 255, 255, 0.2) 55%, transparent 55%, transparent 100%),
+        linear-gradient(135deg, transparent 0%, transparent 60%, rgba(255, 255, 255, 0.2) 60%, rgba(255, 255, 255, 0.2) 65%, transparent 65%, transparent 100%);
+      background-repeat: no-repeat;
+      background-position: bottom right;
+      opacity: 0.6;
+    }
+    
+    .resize-handle:hover::before {
+      opacity: 1;
+    }
   </style>
 </head>
 <body>
@@ -270,6 +374,11 @@
       <button class="titlebar-button" id="minimizeBtn" title="Minimizar">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
+        </svg>
+      </button>
+      <button class="titlebar-button" id="maximizeBtn" title="Maximizar">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2h-2" />
         </svg>
       </button>
       <button class="titlebar-button close" id="closeBtn" title="Fechar">
@@ -314,8 +423,37 @@
       window.electronAPI.minimizeFileListWindow();
     });
     
+    document.getElementById('maximizeBtn').addEventListener('click', () => {
+      window.electronAPI.maximizeFileListWindow();
+    });
+    
     document.getElementById('closeBtn').addEventListener('click', () => {
       window.electronAPI.closeFileListWindow();
+    });
+    
+    // Duplo clique na titlebar para maximizar/restaurar
+    document.querySelector('.titlebar').addEventListener('dblclick', () => {
+      window.electronAPI.maximizeFileListWindow();
+    });
+    
+    // Atualiza ícone do botão de maximizar baseado no estado da janela
+    const maximizeBtn = document.getElementById('maximizeBtn');
+    window.electronAPI.onWindowMaximized((isMaximized) => {
+      if (isMaximized) {
+        maximizeBtn.title = 'Restaurar';
+        maximizeBtn.innerHTML = `
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+          </svg>
+        `;
+      } else {
+        maximizeBtn.title = 'Maximizar';
+        maximizeBtn.innerHTML = `
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2h-2" />
+          </svg>
+        `;
+      }
     });
     
     // Sistema de thumbnails com lazy loading
@@ -452,6 +590,21 @@
         return;
       }
       
+      // PROTECAO: Verifica tamanho do arquivo antes de carregar
+      try {
+        const stats = await window.electronAPI.getFileStats(filePath);
+        const MAX_THUMBNAIL_SIZE = 5 * 1024 * 1024; // 5MB maximo para thumbnail
+        
+        if (stats.size > MAX_THUMBNAIL_SIZE) {
+          console.warn(`[Thumbnail] Arquivo muito grande (${(stats.size / 1024 / 1024).toFixed(2)}MB), pulando: ${filePath}`);
+          thumbnailElement.innerHTML = '<div style="color: #888; font-size: 10px; text-align: center;">Arquivo muito grande</div>';
+          return;
+        }
+      } catch (err) {
+        console.error('[Thumbnail] Erro ao verificar tamanho:', err);
+        return;
+      }
+      
       // Adiciona a fila se ja temos muitas carregando
       if (currentlyLoading >= MAX_CONCURRENT) {
         loadingQueue.push({ filePath, thumbnailElement });
@@ -563,9 +716,15 @@
         if (extLower === '.tga') {
           // TGA direto
           imageData = decodeTGASimple(arrayBuffer);
-        } else if (extLower === '.ozt' || extLower === '.ozb' || extLower === '.ozd') {
-          // OZT: TGA comprimido com zlib
+        } else if (extLower === '.ozt') {
+          // OZT: TGA comprimido com zlib (.ozb e .ozd removidos - muito encriptados)
           const compressed = new Uint8Array(arrayBuffer);
+          
+          // PROTECAO: Verifica se e JPEG direto (alguns .OZT sao na verdade JPEG grandes)
+          if (compressed[0] === 0xFF && compressed[1] === 0xD8) {
+            console.log('[Thumbnail] OZT e na verdade JPEG, pulando thumbnail customizado');
+            return null; // Pula thumbnails de JPEGs grandes/corrompidos
+          }
           
           // Tenta descomprimir
           if (compressed[0] === 0x78) {
@@ -655,6 +814,118 @@
       if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
       return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
     }
+  </script>
+  
+  <!-- Áreas de redimensionamento -->
+  <div class="resize-border top" data-resize="top"></div>
+  <div class="resize-border bottom" data-resize="bottom"></div>
+  <div class="resize-border left" data-resize="left"></div>
+  <div class="resize-border right" data-resize="right"></div>
+  
+  <div class="resize-corner top-left" data-resize="top-left"></div>
+  <div class="resize-corner top-right" data-resize="top-right"></div>
+  <div class="resize-corner bottom-left" data-resize="bottom-left"></div>
+  <div class="resize-corner bottom-right" data-resize="bottom-right"></div>
+  
+  <!-- Grip visual -->
+  <div class="resize-handle"></div>
+  
+  <script>
+    // Sistema de redimensionamento manual
+    (function() {
+      let isResizing = false;
+      let resizeDirection = null;
+      let startX = 0;
+      let startY = 0;
+      let startBounds = null;
+      
+      // Adiciona listeners em todas as áreas de resize
+      document.querySelectorAll('[data-resize]').forEach(element => {
+        element.addEventListener('mousedown', async (e) => {
+          e.preventDefault();
+          isResizing = true;
+          resizeDirection = element.dataset.resize;
+          startX = e.screenX;
+          startY = e.screenY;
+          
+          // Pega tamanho e posição atual da janela
+          startBounds = await window.electronAPI.getWindowBounds();
+        });
+      });
+      
+      document.addEventListener('mousemove', (e) => {
+        if (!isResizing || !startBounds) return;
+        
+        const deltaX = e.screenX - startX;
+        const deltaY = e.screenY - startY;
+        
+        let newBounds = { ...startBounds };
+        
+        // Calcula novos bounds baseado na direção
+        switch (resizeDirection) {
+          case 'right':
+            newBounds.width = Math.max(500, startBounds.width + deltaX);
+            break;
+          case 'bottom':
+            newBounds.height = Math.max(600, startBounds.height + deltaY);
+            break;
+          case 'left':
+            const newWidth = Math.max(500, startBounds.width - deltaX);
+            if (newWidth >= 500) {
+              newBounds.x = startBounds.x + deltaX;
+              newBounds.width = newWidth;
+            }
+            break;
+          case 'top':
+            const newHeight = Math.max(600, startBounds.height - deltaY);
+            if (newHeight >= 600) {
+              newBounds.y = startBounds.y + deltaY;
+              newBounds.height = newHeight;
+            }
+            break;
+          case 'bottom-right':
+            newBounds.width = Math.max(500, startBounds.width + deltaX);
+            newBounds.height = Math.max(600, startBounds.height + deltaY);
+            break;
+          case 'bottom-left':
+            const blWidth = Math.max(500, startBounds.width - deltaX);
+            if (blWidth >= 500) {
+              newBounds.x = startBounds.x + deltaX;
+              newBounds.width = blWidth;
+            }
+            newBounds.height = Math.max(600, startBounds.height + deltaY);
+            break;
+          case 'top-right':
+            newBounds.width = Math.max(500, startBounds.width + deltaX);
+            const trHeight = Math.max(600, startBounds.height - deltaY);
+            if (trHeight >= 600) {
+              newBounds.y = startBounds.y + deltaY;
+              newBounds.height = trHeight;
+            }
+            break;
+          case 'top-left':
+            const tlWidth = Math.max(500, startBounds.width - deltaX);
+            const tlHeight = Math.max(600, startBounds.height - deltaY);
+            if (tlWidth >= 500) {
+              newBounds.x = startBounds.x + deltaX;
+              newBounds.width = tlWidth;
+            }
+            if (tlHeight >= 600) {
+              newBounds.y = startBounds.y + deltaY;
+              newBounds.height = tlHeight;
+            }
+            break;
+        }
+        
+        window.electronAPI.setFileListWindowBounds(newBounds);
+      });
+      
+      document.addEventListener('mouseup', () => {
+        isResizing = false;
+        resizeDirection = null;
+        startBounds = null;
+      });
+    })();
   </script>
 </body>
 </html>

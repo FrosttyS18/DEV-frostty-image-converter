@@ -39,7 +39,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
   
   // File list window controls
   minimizeFileListWindow: () => ipcRenderer.send('filelist-window-minimize'),
+  maximizeFileListWindow: () => ipcRenderer.send('filelist-window-maximize'),
   closeFileListWindow: () => ipcRenderer.send('filelist-window-close'),
+  onWindowMaximized: (callback) => ipcRenderer.on('window-maximized', (event, isMaximized) => callback(isMaximized)),
+  resizeFileListWindow: (width, height) => ipcRenderer.send('filelist-window-resize', { width, height }),
+  setFileListWindowBounds: (bounds) => ipcRenderer.send('filelist-window-set-bounds', bounds),
+  getWindowBounds: () => ipcRenderer.invoke('get-window-bounds'),
 });
 
 console.log('[Preload] electronAPI exposta com sucesso!');
