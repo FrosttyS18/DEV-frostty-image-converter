@@ -566,7 +566,11 @@ const FileList = ({
           filteredFiles.map((file, index) => (
             <div
               key={`${file.path}-${index}`}
-              onClick={() => onSelectFile(file)}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onSelectFile(file);
+              }}
               onContextMenu={(e) => handleContextMenu(e, file)}
               className={`
                 glass-strong rounded-lg p-3 cursor-pointer

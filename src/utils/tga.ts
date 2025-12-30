@@ -145,20 +145,104 @@ export function decodeTGA(buffer: ArrayBuffer): ImageData {
   // Ler dados de imagem
   const imageData = new Uint8Array(buffer, offset);
   
-  for (let i = 0; i < pixelCount; i++) {
-    const srcIndex = i * bytesPerPixel;
-    const dstIndex = i * 4;
+  // Verificar tipo de compressão
+  if (header.imageType === 10) {
+    // Tipo 10: Run-Length Encoded (RLE) True-Color
+    console.log('[TGA] AVISO: Arquivo TGA com compressão RLE detectado (tipo 10)');
+    console.log('[TGA] Descomprimindo RLE...');
+    
+    let pixelIndex = 0;
+    let dataIndex = 0;
+    
+    while (pixelIndex < pixelCount && dataIndex < imageData.length) {
+      // Ler byte de controle RLE
+      const controlByte = imageData[dataIndex++];
+      const isRlePacket = (controlByte & 0x80) !== 0; // Bit 7 indica se é RLE
+      const runLength = (controlByte & 0x7F) + 1; // Bits 0-6 = comprimento (1-128)
+      
+      if (isRlePacket) {
+        // RLE packet: repetir o próximo pixel 'runLength' vezes
+        if (dataIndex + bytesPerPixel > imageData.length) break;
+        
+        const b = imageData[dataIndex];
+        const g = imageData[dataIndex + 1];
+        const r = imageData[dataIndex + 2];
+        const a = hasAlpha ? imageData[dataIndex + 3] : 255;
+        
+        dataIndex += bytesPerPixel;
+        
+        // Repetir pixel 'runLength' vezes
+        for (let i = 0; i < runLength && pixelIndex < pixelCount; i++) {
+          const dstIndex = pixelIndex * 4;
+          rgbaData[dstIndex] = r;
+          rgbaData[dstIndex + 1] = g;
+          rgbaData[dstIndex + 2] = b;
+          rgbaData[dstIndex + 3] = a;
+          pixelIndex++;
+        }
+      } else {
+        // Raw packet: ler 'runLength' pixels sem compressão
+        for (let i = 0; i < runLength && pixelIndex < pixelCount && dataIndex + bytesPerPixel <= imageData.length; i++) {
+          const b = imageData[dataIndex];
+          const g = imageData[dataIndex + 1];
+          const r = imageData[dataIndex + 2];
+          const a = hasAlpha ? imageData[dataIndex + 3] : 255;
+          
+          const dstIndex = pixelIndex * 4;
+          rgbaData[dstIndex] = r;
+          rgbaData[dstIndex + 1] = g;
+          rgbaData[dstIndex + 2] = b;
+          rgbaData[dstIndex + 3] = a;
+          
+          pixelIndex++;
+          dataIndex += bytesPerPixel;
+        }
+      }
+    }
+    
+    if (pixelIndex < pixelCount) {
+      console.warn(`[TGA] AVISO: RLE descomprimido incompleto. Esperado ${pixelCount} pixels, decodificado ${pixelIndex}`);
+    }
+  } else if (header.imageType === 2) {
+    // Tipo 2: Uncompressed True-Color (comum em Mu Online)
+    for (let i = 0; i < pixelCount; i++) {
+      const srcIndex = i * bytesPerPixel;
+      const dstIndex = i * 4;
 
-    // TGA é BGR(A), converter para RGBA
-    const b = imageData[srcIndex];
-    const g = imageData[srcIndex + 1];
-    const r = imageData[srcIndex + 2];
-    const a = hasAlpha ? imageData[srcIndex + 3] : 255;
+      // TGA é BGR(A), converter para RGBA
+      const b = imageData[srcIndex];
+      const g = imageData[srcIndex + 1];
+      const r = imageData[srcIndex + 2];
+      const a = hasAlpha ? imageData[srcIndex + 3] : 255;
 
-    rgbaData[dstIndex] = r;
-    rgbaData[dstIndex + 1] = g;
-    rgbaData[dstIndex + 2] = b;
-    rgbaData[dstIndex + 3] = a;
+      rgbaData[dstIndex] = r;
+      rgbaData[dstIndex + 1] = g;
+      rgbaData[dstIndex + 2] = b;
+      rgbaData[dstIndex + 3] = a;
+    }
+  } else {
+    // Tipos não suportados
+    console.warn(`[TGA] AVISO: Tipo de imagem TGA não suportado: ${header.imageType}`);
+    console.warn('[TGA] Tipos suportados: 2 (Uncompressed), 10 (RLE)');
+    console.warn('[TGA] Tentando ler como tipo 2 (Uncompressed)...');
+    
+    // Fallback: tenta ler como não comprimido
+    for (let i = 0; i < pixelCount; i++) {
+      const srcIndex = i * bytesPerPixel;
+      const dstIndex = i * 4;
+
+      if (srcIndex + bytesPerPixel > imageData.length) break;
+
+      const b = imageData[srcIndex];
+      const g = imageData[srcIndex + 1];
+      const r = imageData[srcIndex + 2];
+      const a = hasAlpha ? imageData[srcIndex + 3] : 255;
+
+      rgbaData[dstIndex] = r;
+      rgbaData[dstIndex + 1] = g;
+      rgbaData[dstIndex + 2] = b;
+      rgbaData[dstIndex + 3] = a;
+    }
   }
 
   // TGA pode estar invertido verticalmente

@@ -2,6 +2,7 @@ import { tgaToDataURL } from './tga';
 import { oztToDataURL } from './ozt';
 import { ozjToDataURL } from './ozj';
 import { electronService } from '../services/electronService';
+import { ImageData } from '../types';
 
 export async function loadImageAsDataUrl(filePath: string): Promise<string> {
   try {
@@ -94,11 +95,23 @@ export function loadImageData(filePath: string): Promise<ImageData> {
           ctx.drawImage(img, 0, 0);
           const imageData = ctx.getImageData(0, 0, img.width, img.height);
           
+          // Converte Uint8ClampedArray para Uint8Array (tipo esperado por ImageData)
+          const dataArray = new Uint8Array(imageData.data);
+          
+          // Verifica se a imagem tem canal alpha (se algum pixel tem alpha < 255)
+          let hasAlphaChannel = false;
+          for (let i = 3; i < imageData.data.length; i += 4) {
+            if (imageData.data[i] < 255) {
+              hasAlphaChannel = true;
+              break;
+            }
+          }
+          
           resolve({
             width: img.width,
             height: img.height,
-            data: new Uint8ClampedArray(imageData.data),
-            hasAlpha: true,
+            data: dataArray,
+            hasAlpha: hasAlphaChannel,
           });
         };
         img.onerror = () => reject(new Error('Falha ao carregar imagem'));

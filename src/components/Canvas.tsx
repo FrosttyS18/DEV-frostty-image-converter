@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useImagePreview } from '../hooks/useImagePreview';
 import { FileInfo } from '../types';
 
@@ -24,6 +24,12 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
   const [isPanModeActive, setIsPanModeActive] = useState(false); // Estado do botão (só muda ao clicar)
   const containerRef = useRef<HTMLDivElement>(null);
   const autoFitZoomRef = useRef<number>(1);
+  
+  // Sistema de inércia (Kinetic Scrolling)
+  const velocityRef = useRef({ x: 0, y: 0 }); // Velocidade atual
+  const lastPositionsRef = useRef<Array<{ x: number; y: number; time: number }>>([]); // Histórico de posições para média móvel
+  const animationFrameRef = useRef<number | null>(null);
+  const FRICTION = 0.925; // Sweet spot para sensação "pesada" tipo Photoshop
   
   // Auto-fit: Calcula zoom inicial para imagem caber no canvas
   useEffect(() => {
@@ -54,29 +60,46 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
     setPosition({ x: 0, y: 0 }); // Centraliza
   }, [imageInfo]);
   
+  // NOVO: Adicione isso para corrigir bugs ao redimensionar a janela
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const observer = new ResizeObserver(() => {
+      // Força o React a recalcular os limites com o novo tamanho
+      // Usamos o setPosition com o valor atual apenas para disparar o re-render
+      setPosition(prev => ({ ...prev }));
+    });
+
+    observer.observe(container);
+    
+    // Cleanup: desliga o observador quando sair da tela
+    return () => observer.disconnect();
+  }, []);
+  
   // Listener para teclas (ESPACO = pan temporário, Ctrl+0 = auto-fit)
   useEffect(() => {
     if (!previewUrl) return;
     
     const handleKeyDown = (e: KeyboardEvent) => {
       // ESPACO: permite pan temporário (NÃO ativa o botão visualmente)
+      // Só funciona quando NÃO está digitando texto
       if (e.code === 'Space' && !e.repeat) {
         const target = e.target as HTMLElement;
-        // Ignora se estiver digitando em um input
+        
+        // SÓ ignora se estiver digitando em um input/textarea
+        // Fora disso, SEMPRE ativa a mãozinha
         if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
-          return;
+          return; // Deixa o espaço funcionar normalmente para digitação
         }
-        // Ignora se estiver em um botão ou elemento interativo
-        if (target.closest('button') || target.closest('input') || target.closest('textarea')) {
-          return;
-        }
+        
         // Atualiza ref imediatamente (sem re-render)
         if (!isSpacePressedRef.current) {
           isSpacePressedRef.current = true;
           // Só atualiza estado se necessário para o cursor
           setIsSpacePressed(true);
         }
-        // Previne scroll da página, mas NÃO interfere com eventos de mouse
+        // Previne scroll da página quando espaço é usado para pan
         e.preventDefault();
       }
       
@@ -96,21 +119,23 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
     const handleKeyUp = (e: KeyboardEvent) => {
       if (e.code === 'Space') {
         const target = e.target as HTMLElement;
-        // Ignora se estiver digitando em um input
+        
+        // SÓ ignora se estiver digitando em um input/textarea
         if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
-          return;
+          return; // Deixa o espaço funcionar normalmente para digitação
         }
-        // Ignora se estiver em um botão ou elemento interativo
-        if (target.closest('button') || target.closest('input') || target.closest('textarea')) {
-          return;
-        }
+        
         // Atualiza ref imediatamente (sem re-render)
         if (isSpacePressedRef.current) {
           isSpacePressedRef.current = false;
           // Só atualiza estado se necessário para o cursor
           setIsSpacePressed(false);
         }
-        // Previne comportamento padrão, mas NÃO interfere com eventos de mouse
+        // Se estava arrastando, para o arrasto quando soltar espaço
+        if (isDragging) {
+          setIsDragging(false);
+        }
+        // Previne comportamento padrão quando espaço é usado para pan
         e.preventDefault();
       }
     };
@@ -123,7 +148,7 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [previewUrl]);
+  }, [previewUrl, isDragging]);
   
   // Zoom com Alt+Scroll (igual Photoshop)
   useEffect(() => {
@@ -167,6 +192,17 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
       // Previne seleção de texto e outros comportamentos padrão
       e.preventDefault();
       // NÃO usa stopPropagation para não interferir com outros handlers
+      
+      // Zera velocidade e histórico ao iniciar novo arraste
+      velocityRef.current = { x: 0, y: 0 };
+      lastPositionsRef.current = [];
+      
+      // Cancela animação anterior se existir
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+      
       setIsDragging(true);
       setDragStart({ 
         x: e.clientX, 
@@ -175,57 +211,242 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
     }
   };
   
+  // Função auxiliar para calcular limites baseados no tamanho escalado (com zoom)
+  // Versão "mesa livre": permite arrastar imagens pequenas livremente pela tela
+  const calculateLimits = useCallback(() => {
+    if (!containerRef.current || !imageInfo) {
+      return { minX: 0, maxX: 0, minY: 0, maxY: 0 };
+    }
+    
+    const container = containerRef.current;
+    const containerWidth = container.clientWidth; 
+    const containerHeight = container.clientHeight;
+    
+    const scaledWidth = imageInfo.width * zoom;
+    const scaledHeight = imageInfo.height * zoom;
+    
+    const overflowX = scaledWidth - containerWidth;
+    const overflowY = scaledHeight - containerHeight;
+
+    let minX, maxX, minY, maxY;
+
+    // LÓGICA X
+    if (overflowX > 0) {
+      // Imagem maior que a tela: move pelas bordas da imagem
+      maxX = overflowX / 2;
+      minX = -overflowX / 2;
+    } else {
+      // Imagem menor que a tela: permite mover até a imagem encostar na borda oposta
+      // Invertemos a lógica: o limite é o espaço vazio
+      const emptySpaceX = containerWidth - scaledWidth;
+      maxX = emptySpaceX / 2;
+      minX = -emptySpaceX / 2;
+    }
+
+    // LÓGICA Y
+    if (overflowY > 0) {
+      maxY = overflowY / 2;
+      minY = -overflowY / 2;
+    } else {
+      const emptySpaceY = containerHeight - scaledHeight;
+      maxY = emptySpaceY / 2;
+      minY = -emptySpaceY / 2;
+    }
+    
+    return { minX, maxX, minY, maxY };
+  }, [zoom, imageInfo]);
+
+  // Função para aplicar limites (clamping) e zerar velocidade se bater na borda
+  const applyLimits = useCallback((x: number, y: number) => {
+    const limits = calculateLimits();
+    let newX = x;
+    let newY = y;
+    let hitBoundary = false;
+    
+    // Aplica limites (hard stop)
+    if (x < limits.minX) {
+      newX = limits.minX;
+      hitBoundary = true;
+    } else if (x > limits.maxX) {
+      newX = limits.maxX;
+      hitBoundary = true;
+    }
+    
+    if (y < limits.minY) {
+      newY = limits.minY;
+      hitBoundary = true;
+    } else if (y > limits.maxY) {
+      newY = limits.maxY;
+      hitBoundary = true;
+    }
+    
+    // Se bateu na borda, zera velocidade (hard stop tipo Photoshop)
+    if (hitBoundary) {
+      velocityRef.current = { x: 0, y: 0 };
+    }
+    
+    return { x: newX, y: newY };
+  }, [calculateLimits]);
+
+  // Função para atualizar posição durante arraste (Fase 1: A "Mão")
+  const updatePositionDuringDrag = useCallback((clientX: number, clientY: number) => {
+    if (!isDragging || !containerRef.current || !imageInfo) return;
+    
+    // Calcula delta do movimento
+    const deltaX = clientX - dragStart.x;
+    const deltaY = clientY - dragStart.y;
+    
+    // Calcula nova posição e armazena para calcular velocidade
+    let newPosition = { x: 0, y: 0 };
+    setPosition(prev => {
+      // Nova posição = posição anterior + delta
+      const newX = prev.x + deltaX;
+      const newY = prev.y + deltaY;
+      
+      // Aplica limites
+      newPosition = applyLimits(newX, newY);
+      return newPosition;
+    });
+    
+    // Calcula velocidade baseada na posição da IMAGEM (não do mouse)
+    const now = Date.now();
+    const currentPos = { x: newPosition.x, y: newPosition.y, time: now };
+    
+    // Adiciona à lista de posições recentes (máximo 5) para média móvel
+    lastPositionsRef.current.push(currentPos);
+    if (lastPositionsRef.current.length > 5) {
+      lastPositionsRef.current.shift();
+    }
+    
+    // Calcula velocidade média dos últimos movimentos (média móvel)
+    if (lastPositionsRef.current.length >= 2) {
+      const first = lastPositionsRef.current[0];
+      const last = lastPositionsRef.current[lastPositionsRef.current.length - 1];
+      const timeDelta = (last.time - first.time) || 1; // Evita divisão por zero
+      
+      // Velocidade = diferença de posição da imagem / tempo (normalizada para ~60fps)
+      velocityRef.current = {
+        x: ((last.x - first.x) / timeDelta) * 16,
+        y: ((last.y - first.y) / timeDelta) * 16
+      };
+    }
+    
+    setDragStart({
+      x: clientX,
+      y: clientY
+    });
+  }, [isDragging, dragStart, imageInfo, applyLimits]);
+
+  // Loop de física para inércia (Fase 2: O "Flick")
+  const physicsLoop = useCallback(() => {
+    const velocity = velocityRef.current;
+    
+    // Se velocidade for muito baixa, para o loop
+    if (Math.abs(velocity.x) < 0.1 && Math.abs(velocity.y) < 0.1) {
+      velocityRef.current = { x: 0, y: 0 };
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+      return;
+    }
+    
+    // Aplica inércia: posição += velocidade
+    setPosition(prev => {
+      const newX = prev.x + velocity.x;
+      const newY = prev.y + velocity.y;
+      
+      // Aplica limites (pode zerar velocidade se bater na borda)
+      const clamped = applyLimits(newX, newY);
+      
+      return clamped;
+    });
+    
+    // Aplica atrito: velocidade *= atrito
+    velocityRef.current = {
+      x: velocity.x * FRICTION,
+      y: velocity.y * FRICTION
+    };
+    
+    // Continua o loop
+    animationFrameRef.current = requestAnimationFrame(physicsLoop);
+  }, [applyLimits]);
+
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (isDragging && containerRef.current && imageInfo) {
-      // Calcula delta do movimento
-      const deltaX = e.clientX - dragStart.x;
-      const deltaY = e.clientY - dragStart.y;
-      
-      // Calcula limites para evitar que a imagem saia da tela
-      const container = containerRef.current;
-      const containerWidth = container.clientWidth - 64; // Padding
-      const containerHeight = container.clientHeight - 64;
-      
-      const scaledWidth = imageInfo.width * zoom;
-      const scaledHeight = imageInfo.height * zoom;
-      
-      setPosition(prev => {
-        // Calcula nova posição
-        let newX = prev.x + deltaX;
-        let newY = prev.y + deltaY;
-        
-        // Aplica limites apenas se a imagem for maior que o container
-        // Se a imagem for menor, permite movimento livre (sem limites rígidos)
-        if (scaledWidth > containerWidth) {
-          // Limites: a imagem não pode sair completamente da área visível
-          const maxX = (scaledWidth - containerWidth) / 2;
-          const minX = -maxX;
-          newX = Math.max(minX, Math.min(maxX, newX));
-        }
-        // Se a imagem é menor que o container, permite movimento livre (sem forçar a 0)
-        
-        if (scaledHeight > containerHeight) {
-          // Limites: a imagem não pode sair completamente da área visível
-          const maxY = (scaledHeight - containerHeight) / 2;
-          const minY = -maxY;
-          newY = Math.max(minY, Math.min(maxY, newY));
-        }
-        // Se a imagem é menor que o container, permite movimento livre (sem forçar a 0)
-        
-        return { x: newX, y: newY };
-      });
-      
-      setDragStart({
-        x: e.clientX,
-        y: e.clientY
-      });
+    if (isDragging) {
+      updatePositionDuringDrag(e.clientX, e.clientY);
     }
   };
   
   const handleMouseUp = () => {
     setIsDragging(false);
+    
+    // Fase 2: Inicia inércia se houver velocidade
+    const velocity = velocityRef.current;
+    if (Math.abs(velocity.x) > 0.1 || Math.abs(velocity.y) > 0.1) {
+      // Cancela loop anterior se existir
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      // Inicia loop de física
+      animationFrameRef.current = requestAnimationFrame(physicsLoop);
+    } else {
+      // Se não há velocidade, zera tudo
+      velocityRef.current = { x: 0, y: 0 };
+      lastPositionsRef.current = [];
+    }
+    
     // O pan será desativado quando soltar o espaço (no handleKeyUp)
   };
+
+  // Listener global de mouse para continuar arrastando mesmo quando mouse sai do canvas
+  // Comportamento tipo Photoshop: objeto trava na borda quando mouse sai, mas continua arrastando
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleGlobalMouseMove = (e: MouseEvent) => {
+      // Continua arrastando mesmo quando mouse está fora do canvas
+      updatePositionDuringDrag(e.clientX, e.clientY);
+    };
+
+    const handleGlobalMouseUp = () => {
+      // Para o arrasto quando soltar o mouse em qualquer lugar
+      setIsDragging(false);
+      
+      // Fase 2: Inicia inércia se houver velocidade
+      const velocity = velocityRef.current;
+      if (Math.abs(velocity.x) > 0.1 || Math.abs(velocity.y) > 0.1) {
+        // Cancela loop anterior se existir
+        if (animationFrameRef.current) {
+          cancelAnimationFrame(animationFrameRef.current);
+        }
+        // Inicia loop de física
+        animationFrameRef.current = requestAnimationFrame(physicsLoop);
+      } else {
+        // Se não há velocidade, zera tudo
+        velocityRef.current = { x: 0, y: 0 };
+        lastPositionsRef.current = [];
+      }
+    };
+
+    // Adiciona listeners globais no document para capturar movimento mesmo fora do canvas
+    document.addEventListener('mousemove', handleGlobalMouseMove);
+    document.addEventListener('mouseup', handleGlobalMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleGlobalMouseMove);
+      document.removeEventListener('mouseup', handleGlobalMouseUp);
+    };
+  }, [isDragging, updatePositionDuringDrag, physicsLoop]);
+
+  // Cleanup: cancela animação quando componente desmonta
+  useEffect(() => {
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, []);
 
   return (
     <div className="flex-1 min-w-0 flex flex-col gap-4 animate-fade-in">
@@ -289,14 +510,13 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
         </div>
       </div>
       
-      {/* Canvas área */}
+      {/* Canvas área - física controla o movimento, sem padding para cálculo correto */}
       <div 
         ref={containerRef}
-        className="glass rounded-2xl flex-1 min-w-0 min-h-0 p-8 flex items-center justify-center overflow-hidden relative outline-none"
+        className="glass rounded-2xl flex-1 min-w-0 min-h-0 flex items-center justify-center overflow-hidden relative outline-none"
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
         tabIndex={-1}
         style={{ 
           cursor: (zoom > 1 || isSpacePressed || isPanModeActive) 
