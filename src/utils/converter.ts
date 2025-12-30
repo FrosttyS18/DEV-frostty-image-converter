@@ -28,7 +28,7 @@ export async function convertFiles(options: ConversionOptions): Promise<void> {
 async function convertFile(
   filePath: string,
   type: string,
-  preserveAlpha: boolean,
+  _preserveAlpha: boolean,
   outputFolder?: string
 ): Promise<void> {
   console.log(`[convertFile] Arquivo: ${filePath}`);
@@ -76,10 +76,17 @@ async function convertFile(
       break;
       
     case 'JPG_TO_OZJ':
-      if (ext !== '.jpg') {
-        throw new Error(`Arquivo "${filename}" não é JPG. Conversão JPG→OZJ requer arquivos .jpg`);
+      if (ext !== '.jpg' && ext !== '.jpeg') {
+        throw new Error(`Arquivo "${filename}" não é JPG/JPEG. Conversão JPG→OZJ requer arquivos .jpg ou .jpeg`);
       }
       await jpgToOzj(filePath, outputFolder);
+      break;
+      
+    case 'OZT_TO_PNG':
+      if (ext !== '.ozt') {
+        throw new Error(`Arquivo "${filename}" não é OZT. Conversão OZT→PNG requer arquivos .ozt`);
+      }
+      await oztToPng(filePath, outputFolder);
       break;
       
     case 'OZT_TO_TGA':
@@ -110,7 +117,7 @@ async function pngToTga(pngPath: string, outputFolder?: string): Promise<void> {
   
   return new Promise((resolve, reject) => {
     const img = new Image();
-    const blob = new Blob([pngData], { type: 'image/png' });
+    const blob = new Blob([pngData.buffer as ArrayBuffer], { type: 'image/png' });
     const url = URL.createObjectURL(blob);
     
     img.onload = async () => {
@@ -198,7 +205,7 @@ async function tgaToPng(tgaPath: string, outputFolder?: string): Promise<void> {
   const arrayBuffer = uint8Array.buffer.slice(
     uint8Array.byteOffset,
     uint8Array.byteOffset + uint8Array.byteLength
-  );
+  ) as ArrayBuffer;
   
   const imageData = decodeTGA(arrayBuffer);
   
@@ -277,7 +284,7 @@ async function pngToOzt(pngPath: string, outputFolder?: string): Promise<void> {
   
   return new Promise((resolve, reject) => {
     const img = new Image();
-    const blob = new Blob([pngData], { type: 'image/png' });
+    const blob = new Blob([pngData.buffer as ArrayBuffer], { type: 'image/png' });
     const url = URL.createObjectURL(blob);
     
     img.onload = async () => {
@@ -364,7 +371,7 @@ async function oztToPng(oztPath: string, outputFolder?: string): Promise<void> {
   const arrayBuffer = uint8Array.buffer.slice(
     uint8Array.byteOffset,
     uint8Array.byteOffset + uint8Array.byteLength
-  );
+  ) as ArrayBuffer;
   
   const imageData = decodeOZT(arrayBuffer);
   
@@ -439,7 +446,7 @@ async function oztToTga(oztPath: string, outputFolder?: string): Promise<void> {
   const arrayBuffer = uint8Array.buffer.slice(
     uint8Array.byteOffset,
     uint8Array.byteOffset + uint8Array.byteLength
-  );
+  ) as ArrayBuffer;
   
   const imageData = decodeOZT(arrayBuffer);
   
@@ -489,7 +496,7 @@ async function ozjToJpg(ozjPath: string, outputFolder?: string): Promise<void> {
   const arrayBuffer = uint8Array.buffer.slice(
     uint8Array.byteOffset,
     uint8Array.byteOffset + uint8Array.byteLength
-  );
+  ) as ArrayBuffer;
   
   console.log('[OZJ→JPG] ========================================');
   console.log('[OZJ→JPG] Arquivo de origem:', ozjPath);
@@ -544,35 +551,35 @@ async function jpgToOzj(jpgPath: string, outputFolder?: string): Promise<void> {
     throw new Error('Arquivo JPG inválido (muito pequeno)');
   }
   
-  // Valida magic number JPEG (FF D8)
+  // Valida magic number JPEG
   if (uint8Array[0] !== 0xFF || uint8Array[1] !== 0xD8) {
-    throw new Error('Arquivo JPG inválido (magic number incorreto)');
+    throw new Error('Arquivo não é um JPEG válido (magic number incorreto)');
   }
   
   const arrayBuffer = uint8Array.buffer.slice(
     uint8Array.byteOffset,
     uint8Array.byteOffset + uint8Array.byteLength
-  );
+  ) as ArrayBuffer;
   
   console.log('[JPG→OZJ] ========================================');
   console.log('[JPG→OZJ] Arquivo de origem:', jpgPath);
   console.log('[JPG→OZJ] Tamanho do arquivo JPG:', arrayBuffer.byteLength, 'bytes');
   
-  // Codifica JPG para OZJ (JPEG direto, sem zlib - formato original do Mu Online)
-  const ozjBuffer = encodeOZJ(arrayBuffer);
+  // Codifica JPEG para OZJ (JPEG direto, sem compressão - formato compatível com Pentium Tools e o jogo)
+  // Formato: JPEG direto (FF D8) - igual ao Pentium Tools
+  const ozjBuffer = encodeOZJ(arrayBuffer, false, false);
   
   // Valida resultado
   if (!ozjBuffer || ozjBuffer.byteLength === 0) {
-    throw new Error('Falha ao codificar JPG para OZJ');
+    throw new Error('Falha ao codificar JPEG em OZJ');
   }
   
-  console.log('[JPG→OZJ] Tamanho do OZJ:', ozjBuffer.byteLength, 'bytes');
-  console.log('[JPG→OZJ] Formato: JPEG direto (sem zlib, compatível com Mu Online)');
+  console.log('[JPG→OZJ] Tamanho do OZJ gerado:', ozjBuffer.byteLength, 'bytes');
   
-  const filename = (await electronService.getBasename(jpgPath)).replace(/\.jpg$/i, '.ozj');
+  const filename = (await electronService.getBasename(jpgPath)).replace(/\.(jpg|jpeg)$/i, '.ozj');
   const outputPath = outputFolder 
     ? await electronService.joinPath(outputFolder, filename)
-    : jpgPath.replace(/\.jpg$/i, '.ozj');
+    : jpgPath.replace(/\.(jpg|jpeg)$/i, '.ozj');
   
   console.log('[JPG→OZJ] Pasta de destino:', outputFolder || 'mesma pasta do arquivo');
   console.log('[JPG→OZJ] Nome do arquivo:', filename);

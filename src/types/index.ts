@@ -1,3 +1,9 @@
+import { CONVERSION_TYPES } from '../constants/formats';
+
+// Tipo de conversão disponível
+export type ConversionType = typeof CONVERSION_TYPES[keyof typeof CONVERSION_TYPES];
+
+// Informações de arquivo
 export interface FileInfo {
   path: string;
   name: string;
@@ -5,24 +11,18 @@ export interface FileInfo {
   size: number;
 }
 
-export type ConversionType = 
-  | 'PNG_TO_TGA'
-  | 'TGA_TO_PNG'
-  | 'PNG_TO_OZT'
-  | 'OZJ_TO_JPG'
-  | 'JPG_TO_OZJ'
-  | 'OZT_TO_TGA';
-
-export interface ConversionOptions {
-  type: ConversionType;
-  files: FileInfo[];
-  preserveAlpha: boolean;
-  outputFolder?: string;
-}
-
+// Dados de imagem decodificada
 export interface ImageData {
   width: number;
   height: number;
   data: Uint8Array;
   hasAlpha: boolean;
+}
+
+// Opções para conversão de arquivos
+export interface ConversionOptions {
+  type: ConversionType;
+  files: FileInfo[];
+  preserveAlpha: boolean;
+  outputFolder?: string;
 }

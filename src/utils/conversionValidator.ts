@@ -41,7 +41,7 @@ export function getValidConversions(extension: string): ConversionOption[] {
     {
       type: 'JPG_TO_OZJ',
       label: 'JPG → OZJ',
-      enabled: ext === '.jpg',
+      enabled: ext === '.jpg' || ext === '.jpeg',
     },
     {
       type: 'OZT_TO_TGA',

@@ -124,7 +124,24 @@ export function decodeOZJ(buffer: ArrayBuffer): ArrayBuffer {
       return buffer;
     }
     
-    // PRIORIDADE 3: Tenta offsets (formato Mu Online pode ter header extra)
+    // PRIORIDADE 3: Tenta XOR com chave 0xFC (formato encriptado do Mu Online)
+    console.log('[OZJ] Tentando decodificar com XOR (0xFC)...');
+    try {
+      const decoded = new Uint8Array(data.length);
+      for (let i = 0; i < data.length; i++) {
+        decoded[i] = data[i] ^ 0xFC;
+      }
+      
+      // Verifica se após XOR ficou um JPEG válido
+      if (decoded.length >= 2 && decoded[0] === 0xFF && decoded[1] === 0xD8) {
+        console.log('[OZJ] JPEG encontrado após aplicar XOR (0xFC)!');
+        return decoded.buffer;
+      }
+    } catch (err) {
+      console.log('[OZJ] XOR falhou, tentando offsets...');
+    }
+    
+    // PRIORIDADE 4: Tenta offsets (formato Mu Online pode ter header extra)
     console.log('[OZJ] Tentando diferentes offsets...');
     const offsets = [4, 2, 8, 12, 16, 20, 24, 32];
     
@@ -147,6 +164,20 @@ export function decodeOZJ(buffer: ArrayBuffer): ArrayBuffer {
           const decompressed = pako.inflate(offsetData);
           return decompressed.buffer;
         }
+        
+        // Tenta XOR no offset
+        try {
+          const decoded = new Uint8Array(offsetData.length);
+          for (let i = 0; i < offsetData.length; i++) {
+            decoded[i] = offsetData[i] ^ 0xFC;
+          }
+          if (decoded.length >= 2 && decoded[0] === 0xFF && decoded[1] === 0xD8) {
+            console.log(`[OZJ] JPEG encontrado no offset ${skipBytes} após XOR!`);
+            return decoded.buffer;
+          }
+        } catch (err) {
+          // Continua
+        }
       } catch (err) {
         // Continua tentando
         console.log(`[OZJ] Offset ${skipBytes} falhou, tentando próximo...`);
@@ -160,13 +191,42 @@ export function decodeOZJ(buffer: ArrayBuffer): ArrayBuffer {
   }
 }
 
-export function encodeOZJ(jpegBuffer: ArrayBuffer): ArrayBuffer {
+export function encodeOZJ(jpegBuffer: ArrayBuffer, useXOR: boolean = false, useZlib: boolean = false): ArrayBuffer {
   try {
-    // OZJ do Mu Online é JPEG direto (sem compressão zlib adicional)
-    // JPEG já é um formato comprimido, então comprimir com zlib não ajuda
-    // e pode até aumentar o tamanho do arquivo
-    // Arquivos originais do Mu Online usam JPEG direto (header: FF D8)
-    return jpegBuffer;
+    const jpegData = new Uint8Array(jpegBuffer);
+    
+    if (useXOR) {
+      // Codifica com XOR (chave 0xFC) - formato encriptado do Mu Online
+      console.log('[OZJ] Codificando com XOR (0xFC)...');
+      const encoded = new Uint8Array(jpegData.length);
+      for (let i = 0; i < jpegData.length; i++) {
+        encoded[i] = jpegData[i] ^ 0xFC;
+      }
+      return encoded.buffer;
+    } else if (useZlib) {
+      // Comprimir JPEG com zlib (formato comprimido)
+      console.log('[OZJ] Codificando com zlib...');
+      const compressed = pako.deflate(jpegData);
+      return compressed.buffer;
+    } else {
+      // JPEG direto com header de 24 bytes - formato usado pelo Pentium Tools (compatível com o jogo)
+      // O Pentium Tools adiciona os primeiros 24 bytes do JPEG como header
+      console.log('[OZJ] Codificando como JPEG direto com header de 24 bytes (formato Pentium Tools)...');
+      
+      if (jpegData.length < 24) {
+        throw new Error('JPEG muito pequeno para adicionar header de 24 bytes');
+      }
+      
+      // Pega os primeiros 24 bytes do JPEG
+      const header = jpegData.slice(0, 24);
+      
+      // Cria novo buffer: header (24 bytes) + JPEG completo
+      const result = new Uint8Array(24 + jpegData.length);
+      result.set(header, 0);        // Header (primeiros 24 bytes)
+      result.set(jpegData, 24);     // JPEG completo após o header
+      
+      return result.buffer;
+    }
   } catch (error) {
     console.error('Erro ao codificar OZJ:', error);
     throw new Error(`Falha ao codificar OZJ: ${error}`);

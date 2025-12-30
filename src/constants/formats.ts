@@ -4,6 +4,7 @@ export const SUPPORTED_EXTENSIONS = [
   '.ozt',
   '.ozj',
   '.jpg',
+  '.jpeg',
 ] as const;
 
 export const CONVERSION_TYPES = {
@@ -32,4 +33,5 @@ export const EXTENSION_COLORS: Record<string, string> = {
   '.ozt': 'text-purple-400',
   '.ozj': 'text-yellow-400',
   '.jpg': 'text-orange-400',
+  '.jpeg': 'text-orange-400',
 };

@@ -8,25 +8,62 @@
 const fs = require('fs');
 const path = require('path');
 const Jimp = require('jimp');
+const pako = require('pako');
 
-// Função para decodificar OZJ (pode ser JPEG direto ou encriptado)
-function decodeOZJ(buffer) {
+// Função para detectar formato do OZJ original
+function detectOZJFormat(buffer) {
   const data = new Uint8Array(buffer);
   
-  // Verifica se já é um JPEG válido (FF D8)
+  // Verifica se é JPEG direto (FF D8)
   if (data[0] === 0xFF && data[1] === 0xD8) {
-    console.log('      -> Ja e JPEG, sem encriptacao');
-    return buffer;
+    return 'jpeg_direct';
   }
   
-  // Se não, tenta XOR com chave 0xFC
-  console.log('      -> Aplicando XOR (0xFC)');
+  // Verifica se é zlib comprimido (0x78...)
+  if (data[0] === 0x78 && (data[1] === 0x9C || data[1] === 0x01 || data[1] === 0xDA || data[1] === 0x5E)) {
+    return 'zlib';
+  }
+  
+  // Tenta XOR e verifica se resulta em JPEG válido
   const decoded = new Uint8Array(data.length);
   for (let i = 0; i < data.length; i++) {
     decoded[i] = data[i] ^ 0xFC;
   }
+  if (decoded[0] === 0xFF && decoded[1] === 0xD8) {
+    return 'xor';
+  }
   
-  return Buffer.from(decoded);
+  // Desconhecido - tenta como JPEG direto
+  return 'jpeg_direct';
+}
+
+// Função para decodificar OZJ (detecta formato automaticamente)
+function decodeOZJ(buffer) {
+  const data = new Uint8Array(buffer);
+  const format = detectOZJFormat(buffer);
+  
+  if (format === 'jpeg_direct') {
+    console.log('      -> JPEG direto (sem encriptacao)');
+    return { buffer: buffer, format: 'jpeg_direct' };
+  }
+  
+  if (format === 'zlib') {
+    console.log('      -> zlib comprimido');
+    const decompressed = pako.inflate(data);
+    return { buffer: Buffer.from(decompressed), format: 'zlib' };
+  }
+  
+  if (format === 'xor') {
+    console.log('      -> XOR (0xFC)');
+    const decoded = new Uint8Array(data.length);
+    for (let i = 0; i < data.length; i++) {
+      decoded[i] = data[i] ^ 0xFC;
+    }
+    return { buffer: Buffer.from(decoded), format: 'xor' };
+  }
+  
+  // Fallback: retorna como JPEG direto
+  return { buffer: buffer, format: 'jpeg_direct' };
 }
 
 async function mergePieces(folderPath, pattern = '') {
@@ -59,6 +96,7 @@ async function mergePieces(folderPath, pattern = '') {
   }
 
   const jpgFiles = [];
+  const formats = []; // Guarda formato de cada arquivo
   for (const file of files) {
     const ozjPath = path.join(folderPath, file);
     const jpgName = file.replace(/\.ozj$/i, '.jpg');
@@ -66,10 +104,11 @@ async function mergePieces(folderPath, pattern = '') {
 
     console.log(`   ${file}`);
     const ozjData = fs.readFileSync(ozjPath);
-    const jpgData = decodeOZJ(ozjData);
-    fs.writeFileSync(jpgPath, jpgData);
+    const result = decodeOZJ(ozjData);
+    fs.writeFileSync(jpgPath, result.buffer);
     
     jpgFiles.push(jpgPath);
+    formats.push(result.format); // Guarda formato original
   }
 
   // Carrega todas as imagens
@@ -140,7 +179,7 @@ async function mergePieces(folderPath, pattern = '') {
   
   await finalImage.writeAsync(outputPath);
 
-  // Salva informações de layout
+  // Salva informações de layout (incluindo formatos originais)
   const layoutInfo = {
     totalPieces: images.length,
     cols,
@@ -150,7 +189,8 @@ async function mergePieces(folderPath, pattern = '') {
     finalWidth,
     finalHeight,
     pattern,
-    originalFiles: files
+    originalFiles: files,
+    originalFormats: formats // IMPORTANTE: formato de cada arquivo (jpeg_direct, zlib, xor)
   };
 
   const layoutPath = path.join(__dirname, outputName.replace('.png', '_layout.json'));

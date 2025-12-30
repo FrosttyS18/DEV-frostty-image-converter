@@ -8,18 +8,44 @@
 const fs = require('fs');
 const path = require('path');
 const Jimp = require('jimp');
+const pako = require('pako');
 
-// Função para codificar JPEG em OZJ
-function encodeOZJ(jpegBuffer) {
+// Função para codificar JPEG em OZJ (preserva formato original)
+function encodeOZJ(jpegBuffer, format) {
   const data = new Uint8Array(jpegBuffer);
   
-  // XOR simples (chave: 0xFC)
-  const encoded = new Uint8Array(data.length);
-  for (let i = 0; i < data.length; i++) {
-    encoded[i] = data[i] ^ 0xFC;
+  if (format === 'xor') {
+    // XOR simples (chave: 0xFC)
+    console.log('      -> Codificando com XOR (0xFC)');
+    const encoded = new Uint8Array(data.length);
+    for (let i = 0; i < data.length; i++) {
+      encoded[i] = data[i] ^ 0xFC;
+    }
+    return Buffer.from(encoded);
+  } else if (format === 'zlib') {
+    // Comprimir com zlib
+    console.log('      -> Codificando com zlib');
+    const compressed = pako.deflate(data);
+    return Buffer.from(compressed);
+  } else {
+    // JPEG direto com header de 24 bytes - formato Pentium Tools (compatível com o jogo)
+    // O Pentium Tools adiciona os primeiros 24 bytes do JPEG como header
+    console.log('      -> JPEG direto com header de 24 bytes (formato Pentium Tools)');
+    
+    if (data.length < 24) {
+      throw new Error('JPEG muito pequeno para adicionar header de 24 bytes');
+    }
+    
+    // Pega os primeiros 24 bytes do JPEG
+    const header = data.slice(0, 24);
+    
+    // Cria novo buffer: header (24 bytes) + JPEG completo
+    const result = new Uint8Array(24 + data.length);
+    result.set(header, 0);        // Header (primeiros 24 bytes)
+    result.set(data, 24);         // JPEG completo após o header
+    
+    return Buffer.from(result);
   }
-  
-  return Buffer.from(encoded);
 }
 
 async function splitImage(imagePath, layoutPath, outputFolder) {
@@ -61,6 +87,14 @@ async function splitImage(imagePath, layoutPath, outputFolder) {
 
   console.log('\nDividindo imagem em pecas...');
   
+  // Verifica se tem informação de formatos originais
+  const originalFormats = layout.originalFormats || [];
+  if (originalFormats.length === 0) {
+    console.warn('[AVISO] Layout nao tem informacao de formatos originais!');
+    console.warn('   Usando formato padrao: XOR (0xFC)');
+    console.warn('   Se os arquivos originais eram diferentes, pode quebrar o jogo!');
+  }
+  
   for (let i = 0; i < layout.totalPieces; i++) {
     const col = i % layout.cols;
     const row = Math.floor(i / layout.cols);
@@ -73,13 +107,16 @@ async function splitImage(imagePath, layoutPath, outputFolder) {
     // Salva como JPEG em buffer
     const jpegBuffer = await piece.quality(95).getBufferAsync(Jimp.MIME_JPEG);
 
-    // Converte JPEG -> OZJ
-    const ozjBuffer = encodeOZJ(jpegBuffer);
+    // Obtém formato original (ou usa XOR como fallback)
+    const originalFormat = originalFormats[i] || 'xor';
+    
+    // Converte JPEG -> OZJ (preservando formato original)
+    const ozjBuffer = encodeOZJ(jpegBuffer, originalFormat);
     const originalName = layout.originalFiles[i];
     const ozjPath = path.join(outputFolder, originalName);
     fs.writeFileSync(ozjPath, ozjBuffer);
 
-    console.log(`   [OK] Peca ${i + 1}/${layout.totalPieces}: ${originalName}`);
+    console.log(`   [OK] Peca ${i + 1}/${layout.totalPieces}: ${originalName} (formato: ${originalFormat})`);
   }
 
   console.log('\n----------------------------------------');

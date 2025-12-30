@@ -22,7 +22,7 @@ function App() {
   useGlowPointer();
   
   // Hook de seleção de arquivos
-  const { selectedFiles, isLoading, error: fileError, selectFolder, reloadFiles, currentFolderPath: hookFolderPath } = useFileSelection();
+  const { selectedFiles, isLoading, error: fileError, selectFolder } = useFileSelection();
   
   // Hook de conversao
   const { 
@@ -45,15 +45,19 @@ function App() {
   
   // Atualiza folderPath quando arquivos carregam
   useEffect(() => {
-    if (hookFolderPath) {
-      setCurrentFolderPath(hookFolderPath);
-      
+    const updateFolderPath = async () => {
       if (selectedFiles.length > 0 && !isLoading) {
+        const firstFilePath = selectedFiles[0].path;
+        const folderPath = await electronService.getDirname(firstFilePath);
+        setCurrentFolderPath(folderPath);
+        
         setInfoMessage('Pasta carregada!');
         setShowInfoToast(true);
       }
-    }
-  }, [hookFolderPath, selectedFiles.length, isLoading]);
+    };
+    
+    updateFolderPath();
+  }, [selectedFiles.length, isLoading]);
 
   const handleConvert = async (file: FileInfo, type: ConversionType) => {
     console.log('[App] Iniciando conversao, tipo:', type, 'arquivo:', file.name);
@@ -118,9 +122,8 @@ function App() {
           onSelectFile={handleSelectFile}
           onConvert={handleConvert}
           onSelectFolder={handleSelectFolder}
-          onReload={reloadFiles}
           isConverting={isConverting}
-          folderPath={currentFolderPath || hookFolderPath}
+          folderPath={currentFolderPath}
         />
         
         {/* Canvas Visualizador */}

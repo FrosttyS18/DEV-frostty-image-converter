@@ -55,7 +55,6 @@ interface FileListProps {
   onSelectFile: (file: FileInfo) => void;
   onConvert: (file: FileInfo, type: ConversionType) => void;
   onSelectFolder: () => void;
-  onReload?: () => void;
   isConverting: boolean;
   folderPath?: string | null;
 }
@@ -73,7 +72,6 @@ const FileList = ({
   onSelectFile,
   onConvert,
   onSelectFolder,
-  onReload,
   isConverting,
   folderPath,
 }: FileListProps) => {
@@ -188,34 +186,16 @@ const FileList = ({
       {/* Header */}
       <div className="mb-4">
         <h2 className="text-xl font-bold text-white mb-2">Arquivos</h2>
-        <div className="flex gap-2">
-          <button
-            onClick={onSelectFolder}
-            disabled={isConverting}
-            className="flex-1 glass-button rounded-xl px-4 py-3 text-sm font-medium text-white
-                     hover:bg-white/10 transition-all duration-200
-                     disabled:opacity-50 disabled:cursor-not-allowed
-                     border border-white/10"
-          >
-            Selecionar Pasta
-          </button>
-          
-          {folderPath && onReload && (
-            <button
-              onClick={onReload}
-              disabled={isConverting}
-              className="glass-button rounded-xl px-4 py-3 text-sm font-medium text-white
-                       hover:bg-white/10 transition-all duration-200
-                       disabled:opacity-50 disabled:cursor-not-allowed
-                       border border-white/10 flex items-center justify-center"
-              title="Recarregar lista"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-            </button>
-          )}
-        </div>
+        <button
+          onClick={onSelectFolder}
+          disabled={isConverting}
+          className="w-full glass-button rounded-xl px-4 py-3 text-sm font-medium text-white
+                   hover:bg-white/10 transition-all duration-200
+                   disabled:opacity-50 disabled:cursor-not-allowed
+                   border border-white/10"
+        >
+          Selecionar Pasta
+        </button>
         
         {/* Info da pasta selecionada */}
         {folderPath && files.length > 0 && (
@@ -516,7 +496,7 @@ const FileThumbnail = ({ file, isScrolling }: { file: FileInfo; isScrolling: boo
         ${file.extension === '.tga' ? 'bg-blue-500/20' : ''}
         ${file.extension === '.ozt' ? 'bg-purple-500/20' : ''}
         ${file.extension === '.ozj' ? 'bg-yellow-500/20' : ''}
-        ${file.extension === '.jpg' ? 'bg-orange-500/20' : ''}
+        ${file.extension === '.jpg' || file.extension === '.jpeg' ? 'bg-orange-500/20' : ''}
       `}>
         <span className="text-xs font-bold text-white uppercase">
           {file.extension.replace('.', '')}
