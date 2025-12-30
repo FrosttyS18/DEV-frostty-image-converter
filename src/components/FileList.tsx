@@ -4,6 +4,8 @@ import { FileInfo, ConversionType } from '../types';
 import { getValidConversions } from '../utils/conversionValidator';
 import { useImagePreview } from '../hooks/useImagePreview';
 import { SUPPORTED_EXTENSIONS } from '../constants/formats';
+import { useTranslation } from '../hooks/useTranslation';
+import SettingsModal from './SettingsModal';
 
 // Sistema de fila global com prioridades
 interface QueueTask {
@@ -93,11 +95,13 @@ const FileList = ({
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [isConvertMenuOpen, setIsConvertMenuOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const contextMenuRef = useRef<HTMLDivElement>(null);
   const filterDropdownRef = useRef<HTMLDivElement>(null);
   const convertMenuRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const { t } = useTranslation();
   
   // Debounce do scroll
   const handleScroll = useCallback(() => {
@@ -203,7 +207,7 @@ const FileList = ({
       if (onShowToast) {
         const count = newSet.size;
         if (count > 0) {
-          onShowToast(`${count} arquivo${count > 1 ? 's' : ''} selecionado${count > 1 ? 's' : ''}`, 'info');
+          onShowToast(t('success.filesSelected', { count }), 'info');
         }
       }
       
@@ -228,17 +232,44 @@ const FileList = ({
     <div className="w-96 glass rounded-2xl p-6 flex flex-col animate-fade-in">
       {/* Header */}
       <div className="mb-4">
-        <h2 className="text-xl font-bold text-white mb-2 relative group/title inline-block">
-          Arquivos
-          <div className="absolute bottom-full left-0 mb-2 px-2 py-1 
-                        bg-black/90 text-white text-xs rounded-lg whitespace-nowrap
-                        opacity-0 group-hover/title:opacity-100 transition-opacity duration-200
-                        pointer-events-none z-50">
-            Lista de arquivos da pasta selecionada
-            <div className="absolute top-full left-4 -mt-1
-                          border-4 border-transparent border-t-black/90"></div>
-          </div>
-        </h2>
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-xl font-bold text-white relative group/title inline-block">
+            {t('files')}
+            <div className="absolute bottom-full left-0 mb-2 px-2 py-1 
+                          bg-black/90 text-white text-xs rounded-lg whitespace-nowrap
+                          opacity-0 group-hover/title:opacity-100 transition-opacity duration-200
+                          pointer-events-none z-50">
+              {t('filesListTooltip')}
+              <div className="absolute top-full left-4 -mt-1
+                            border-4 border-transparent border-t-black/90"></div>
+            </div>
+          </h2>
+          <button
+            onClick={() => setIsSettingsOpen(true)}
+            className="text-white/60 hover:text-white transition-colors"
+            aria-label={t('settings')}
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+              />
+            </svg>
+          </button>
+        </div>
         <div className="flex gap-2">
           <div className="flex-1 relative group/select">
             <button
@@ -249,14 +280,14 @@ const FileList = ({
                        disabled:opacity-50 disabled:cursor-not-allowed
                        border border-white/10"
             >
-              Selecionar Pasta
+              {t('selectFolder')}
             </button>
             {/* Tooltip */}
             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 
                           bg-black/90 text-white text-xs rounded-lg whitespace-nowrap
                           opacity-0 group-hover/select:opacity-100 transition-opacity duration-200
                           pointer-events-none z-50">
-              Selecionar pasta para carregar arquivos
+              {t('selectFolderTooltip')}
               <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1
                             border-4 border-transparent border-t-black/90"></div>
             </div>
@@ -290,7 +321,7 @@ const FileList = ({
                             bg-black/90 text-white text-xs rounded-lg whitespace-nowrap
                             opacity-0 group-hover/reload:opacity-100 transition-opacity duration-200
                             pointer-events-none z-50">
-                Atualizar lista de arquivos
+                {t('reloadFolder')}
                 <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1
                               border-4 border-transparent border-t-black/90"></div>
               </div>
@@ -310,7 +341,7 @@ const FileList = ({
                   {folderPath}
                 </p>
                 <p className="text-xs text-purple-300/60 mt-0.5">
-                  {files.length} arquivos
+                  {t('filesCount', { count: files.length })}
                 </p>
               </div>
             </div>
@@ -331,7 +362,7 @@ const FileList = ({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Buscar..."
+                placeholder={t('searchPlaceholder')}
                 className="w-full h-9 glass-strong rounded-lg px-3 pl-8 text-xs text-white
                          placeholder:text-white/40 border border-white/10
                          focus:border-purple-400/50 focus:outline-none
@@ -342,7 +373,7 @@ const FileList = ({
                             bg-black/90 text-white text-xs rounded-lg whitespace-nowrap
                             opacity-0 group-hover/search:opacity-100 transition-opacity duration-200
                             pointer-events-none z-50">
-                Buscar arquivos por nome
+                {t('searchPlaceholder')}
                 <div className="absolute top-full left-4 -mt-1
                               border-4 border-transparent border-t-black/90"></div>
               </div>
@@ -369,7 +400,7 @@ const FileList = ({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                 </svg>
                 <span className="flex-1 text-left">
-                  {filterType === 'all' ? 'Todos' : filterType.toUpperCase().replace('.', '')}
+                  {filterType === 'all' ? t('filterAll') : filterType.toUpperCase().replace('.', '')}
                 </span>
                 <svg 
                   className={`w-3 h-3 text-white/40 transition-transform duration-200 ${isFilterOpen ? 'rotate-180' : ''}`}
@@ -385,7 +416,7 @@ const FileList = ({
                             bg-black/90 text-white text-xs rounded-lg whitespace-nowrap
                             opacity-0 group-hover/filter:opacity-100 transition-opacity duration-200
                             pointer-events-none z-50">
-                Filtrar arquivos por tipo
+                {t('searchPlaceholder')}
                 <div className="absolute top-full right-4 -mt-1
                               border-4 border-transparent border-t-black/90"></div>
               </div>
@@ -400,7 +431,7 @@ const FileList = ({
                               transition-colors duration-150
                               ${filterType === 'all' ? 'text-purple-300 font-medium' : 'text-white'}`}
                   >
-                    Todos
+                    {t('filterAll')}
                   </button>
                   {SUPPORTED_EXTENSIONS.map(ext => (
                     <button
@@ -440,7 +471,7 @@ const FileList = ({
                       const validConversions = getValidOptions(selectedFileInfos[0]);
                       if (validConversions.length === 0) {
                         if (onShowToast) {
-                          onShowToast('Nenhuma conversão disponível para este formato', 'error');
+                          onShowToast(t('noConversionAvailable'), 'error');
                         }
                         return;
                       }
@@ -477,7 +508,7 @@ const FileList = ({
                         {/* Header */}
                         <div className="px-3 py-1.5 border-b border-white/10">
                           <p className="text-xs font-medium text-purple-300">
-                            {selectedFiles.size} arquivo{selectedFiles.size > 1 ? 's' : ''}
+                            {t('filesCount', { count: selectedFiles.size })}
                           </p>
                         </div>
                         
@@ -496,7 +527,7 @@ const FileList = ({
                                 } else {
                                   // Fallback: converte um por um (comportamento antigo)
                                   if (onShowToast) {
-                                    onShowToast(`Convertendo ${selectedFiles.size} arquivo${selectedFiles.size > 1 ? 's' : ''}...`, 'info');
+                                    onShowToast(t('loading.converting'), 'info');
                                   }
                                   for (const file of selectedFileInfos) {
                                     await onConvert(file, option.type);
@@ -529,7 +560,7 @@ const FileList = ({
                                 bg-black/90 text-white text-xs rounded-lg whitespace-nowrap
                                 opacity-0 group-hover/convert:opacity-100 transition-opacity duration-200
                                 pointer-events-none z-50">
-                    Converter {selectedFiles.size} arquivo{selectedFiles.size > 1 ? 's' : ''} selecionado{selectedFiles.size > 1 ? 's' : ''}
+                    {t('convertMultiple', { count: selectedFiles.size })}
                     <div className="absolute top-full right-4 -mt-1
                                   border-4 border-transparent border-t-black/90"></div>
                   </div>
@@ -551,16 +582,16 @@ const FileList = ({
             <svg className="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
-            <p className="text-sm">Nenhum arquivo encontrado</p>
-            <p className="text-xs mt-1">Tente outra busca ou filtro</p>
+            <p className="text-sm">{t('noFiles')}</p>
+            <p className="text-xs mt-1">{t('tryAnotherSearch')}</p>
           </div>
         ) : files.length === 0 ? (
           <div className="text-center py-12 text-purple-300/60">
             <svg className="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
             </svg>
-            <p className="text-sm">Nenhum arquivo carregado</p>
-            <p className="text-xs mt-1">Selecione uma pasta</p>
+            <p className="text-sm">{t('noFiles')}</p>
+            <p className="text-xs mt-1">{t('selectFolderFirst')}</p>
           </div>
         ) : (
           filteredFiles.map((file, index) => (
@@ -688,6 +719,9 @@ const FileList = ({
         </div>,
         document.body
       )}
+      
+      {/* Settings Modal */}
+      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
     </div>
   );
 };

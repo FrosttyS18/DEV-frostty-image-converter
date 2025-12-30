@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { FileInfo, ConversionType } from '../types';
 import { convertFiles } from '../utils/converter';
 import { invalidateCache } from './useImagePreview';
+import { translate } from '../i18n';
 
 /**
  * Hook para gerenciar conversões de arquivos
@@ -40,7 +41,7 @@ export const useConversion = () => {
     
     if (files.length === 0) {
       console.error('[useConversion] Nenhum arquivo selecionado!');
-      setError('Nenhum arquivo selecionado');
+      setError(translate('error.noFilesSelected'));
       return;
     }
 
@@ -58,7 +59,7 @@ export const useConversion = () => {
       });
 
       console.log('[useConversion] Conversao concluida com sucesso!');
-      setSuccessMessage(files.length === 1 ? 'Arquivo convertido!' : `${files.length} arquivos convertidos!`);
+      setSuccessMessage(translate('success.conversionComplete', { count: files.length }));
       
       // Invalida cache de todos os arquivos convertidos (entrada e saída)
       // Isso garante que thumbnails sejam atualizados após conversão
@@ -77,7 +78,7 @@ export const useConversion = () => {
       console.error('[useConversion] ERRO durante conversao:', err);
       const errorMessage = err instanceof Error 
         ? err.message 
-        : 'Erro ao converter arquivos';
+        : translate('error.conversionFailed');
       setError(errorMessage);
       console.error('[useConversion] Error:', err);
     } finally {

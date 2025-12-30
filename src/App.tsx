@@ -9,6 +9,7 @@ import { useFileSelection } from './hooks/useFileSelection';
 import { useGlowPointer } from './hooks/useGlowPointer';
 import { electronService } from './services/electronService';
 import { ConversionType, FileInfo } from './types';
+import { useTranslation } from './hooks/useTranslation';
 
 function App() {
   const [showSuccessToast, setShowSuccessToast] = useState(false);
@@ -16,6 +17,7 @@ function App() {
   const [showInfoToast, setShowInfoToast] = useState(false);
   const [infoMessage, setInfoMessage] = useState<string>('');
   const [selectedFile, setSelectedFile] = useState<FileInfo | null>(null);
+  const { t } = useTranslation();
   
   // Spotlight effect
   useGlowPointer();
@@ -45,7 +47,7 @@ function App() {
   // Mostra toast quando arquivos carregam
   useEffect(() => {
     if (selectedFiles.length > 0 && !isLoading && currentFolderPath) {
-      setInfoMessage('Pasta carregada!');
+      setInfoMessage(t('success.folderLoaded', { count: selectedFiles.length }));
       setShowInfoToast(true);
     }
   }, [selectedFiles.length, isLoading, currentFolderPath]);

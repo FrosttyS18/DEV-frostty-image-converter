@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useImagePreview } from '../hooks/useImagePreview';
 import { FileInfo } from '../types';
 import logoSvg from '../assets/logo-dev-frostty.svg';
+import { useTranslation } from '../hooks/useTranslation';
 
 interface CanvasProps {
   currentPreview: string | null;
@@ -10,6 +11,7 @@ interface CanvasProps {
 
 const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
   const { previewUrl, imageInfo, isLoading, error } = useImagePreview(currentPreview);
+  const { t } = useTranslation();
   
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;
@@ -297,7 +299,7 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
       <div className="flex items-stretch gap-4">
         <div className="glass-strong rounded-2xl px-4 py-3 flex-1">
           <h2 className="text-white text-lg font-semibold truncate relative group/filename inline-block">
-            {selectedFile?.name || 'Nenhum arquivo selecionado'}
+            {selectedFile?.name || t('noFileSelected')}
             {selectedFile?.name && (
               <div className="absolute bottom-full left-0 mb-2 px-2 py-1 bg-black/90 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover/filename:opacity-100 transition-opacity duration-200 pointer-events-none z-50">
                 {selectedFile.name}
@@ -353,7 +355,7 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
         {isLoading ? (
           <div className="text-center">
             <div className="w-16 h-16 border-4 border-purple-500/20 border-t-purple-500 rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-white/60">Carregando preview...</p>
+            <p className="text-white/60">{t('loading.loadingPreview')}</p>
           </div>
         ) : error ? (
           <div className="text-center">
@@ -391,7 +393,7 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
             </div>
-            <p className="text-gray-400 text-lg">Selecione um arquivo para visualizar</p>
+            <p className="text-gray-400 text-lg">{t('selectFileToView')}</p>
           </div>
         )}
       </div>
@@ -414,7 +416,7 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
                 </svg>
               </button>
               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-black/90 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover/zoomout:opacity-100 transition-opacity duration-200 pointer-events-none z-50">
-                Diminuir zoom
+                {t('zoomOut')}
                 <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-black/90"></div>
               </div>
             </div>
@@ -433,7 +435,7 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
                 </svg>
               </button>
               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-black/90 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover/zoomin:opacity-100 transition-opacity duration-200 pointer-events-none z-50">
-                Aumentar zoom
+                {t('zoomIn')}
                 <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-black/90"></div>
               </div>
             </div>
@@ -451,7 +453,7 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
                 Auto
               </button>
               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-black/90 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover/auto:opacity-100 transition-opacity duration-200 pointer-events-none z-50">
-                Ajustar à tela (Ctrl+0)
+                {t('autoFit')} (Ctrl+0)
                 <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-black/90"></div>
               </div>
             </div>
@@ -460,7 +462,7 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
           </div>
           
           <div className="text-white/60 text-xs font-mono relative group/zoomdisplay inline-block">
-            Zoom: {Math.round(zoom * 100)}%
+            {t('zoomLevel', { level: Math.round(zoom * 100) })}
           </div>
         </div>
       )}
