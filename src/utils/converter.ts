@@ -82,13 +82,6 @@ async function convertFile(
       await jpgToOzj(filePath, outputFolder);
       break;
       
-    case 'OZT_TO_PNG':
-      if (ext !== '.ozt') {
-        throw new Error(`Arquivo "${filename}" não é OZT. Conversão OZT→PNG requer arquivos .ozt`);
-      }
-      await oztToPng(filePath, outputFolder);
-      break;
-      
     case 'OZT_TO_TGA':
       if (ext !== '.ozt') {
         throw new Error(`Arquivo "${filename}" não é OZT. Conversão OZT→TGA requer arquivos .ozt`);

@@ -2,6 +2,35 @@
 
 Todas as mudancas notaveis deste projeto.
 
+## [2.1.1] - 2025-12-31
+
+### CORREÇÕES CRÍTICAS DE PERFORMANCE - Canvas
+
+#### Corrigido
+- **Travamento com tecla Espaço (definitivo)**: 
+  - Removido `isDragging` das dependências do `useEffect` do teclado
+  - Implementado `isDraggingRef` para acessar estado sem recriar listeners
+  - Listeners de teclado agora são criados apenas uma vez (não recriam ao arrastar)
+  - `e.preventDefault()` sempre ativo, bloqueando scroll em todas as repetições
+- **Mouse "desprendendo" (lag de input)**:
+  - Trocado `useState` para `useRef` em `dragStart` (atualização síncrona e instantânea)
+  - Delta de movimento agora calculado com precisão 1:1, sem lag
+  - Sincronização perfeita entre hardware do mouse e movimento da imagem
+- **Código morto removido**: Case duplicado `OZT_TO_PNG` removido do `converter.ts`
+
+#### Performance
+- **Refs em vez de State**: `dragStartRef` e `isDraggingRef` eliminam re-renders desnecessários
+- **Listeners estáveis**: Event listeners não são mais recriados durante interações
+- **Código simplificado**: Canvas reduzido de 719 para 502 linhas (30% menor)
+- **Passive: false**: Adicionado explicitamente para garantir que `preventDefault` funcione
+
+#### Melhorias Técnicas
+- **Sincronização de refs**: `useEffect` dedicado para manter `isDraggingRef` atualizado
+- **Event listeners otimizados**: `useEffect` do teclado sem dependências desnecessárias
+- **Cleanup melhorado**: Remoção correta de listeners ao desmontar componente
+
+---
+
 ## [2.1.0] - 2025-12-31
 
 ### MELHORIAS MAJOR - Canvas e UX Avançada

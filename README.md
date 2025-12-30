@@ -138,7 +138,7 @@ Arquivos ate 20MB: Suportados
 
 ### Atalhos
 - **Alt + Scroll**: Zoom in/out
-- **Espaço**: Ativar pan temporário (arrastar enquanto segura)
+- **Espaço**: Ativar pan temporário (arrastar enquanto segura) - **Sem travamentos**
 - **Ctrl + 0**: Auto-fit (resetar zoom)
 - **Clique e arraste**: Mover imagem (quando pan ativo ou zoom > 100%)
 - **Botão Pan**: Ativar/desativar pan permanente
@@ -148,6 +148,8 @@ Arquivos ate 20MB: Suportados
 - **Atrito**: 0.925 (sensação "pesada" tipo Photoshop)
 - **Hard stop**: Para instantaneamente ao bater nas bordas
 - **Mesa livre**: Imagens pequenas podem ser arrastadas livremente pela tela
+- **Sincronização perfeita**: Mouse 1:1 sem lag (usando refs síncronos)
+- **Performance otimizada**: Listeners estáveis, sem recriação durante interações
 
 ### Multi-seleção e Conversão em Lote
 - **Filtro ativo**: Checkboxes aparecem para selecionar múltiplos arquivos
