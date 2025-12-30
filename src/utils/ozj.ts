@@ -1,6 +1,3 @@
-import pako from 'pako';
-import jpeg from 'jpeg-js';
-
 /**
  * OZJ = JPEG do Mu Online (pode conter múltiplas imagens JPEG empacotadas)
  * Estrutura: 
@@ -10,7 +7,25 @@ import jpeg from 'jpeg-js';
  *   Nesse caso, a última imagem geralmente é a principal
  */
 
-export function decodeOZJ(buffer: ArrayBuffer): ArrayBuffer {
+// Lazy load pako e jpeg-js apenas quando necessário
+let pakoModule: typeof import('pako') | null = null;
+let jpegModule: typeof import('jpeg-js') | null = null;
+
+async function getPako() {
+  if (!pakoModule) {
+    pakoModule = await import('pako');
+  }
+  return pakoModule;
+}
+
+async function getJpeg() {
+  if (!jpegModule) {
+    jpegModule = await import('jpeg-js');
+  }
+  return jpegModule;
+}
+
+export async function decodeOZJAsync(buffer: ArrayBuffer): Promise<ArrayBuffer> {
   try {
     const data = new Uint8Array(buffer);
     
@@ -32,6 +47,7 @@ export function decodeOZJ(buffer: ArrayBuffer): ArrayBuffer {
     // PRIORIDADE 1: Comprimido com zlib
     if (isCompressed) {
       console.log('[OZJ] Arquivo comprimido com zlib - descomprimindo...');
+      const pako = await getPako();
       const decompressed = pako.inflate(data);
       return decompressed.buffer;
     }
@@ -102,6 +118,7 @@ export function decodeOZJ(buffer: ArrayBuffer): ArrayBuffer {
           
           // Tenta decodificar com jpeg-js para validar
           try {
+            const jpeg = await getJpeg();
             const testDecode = jpeg.decode(candidateImage, { useTArray: true });
             
             // Se decodificou com sucesso e tem dimensões válidas (qualquer tamanho razoável)
@@ -171,6 +188,7 @@ export function decodeOZJ(buffer: ArrayBuffer): ArrayBuffer {
             offsetData[0] === 0x78 && 
             (offsetData[1] === 0x9C || offsetData[1] === 0x01 || offsetData[1] === 0xDA || offsetData[1] === 0x5E)) {
           console.log(`[OZJ] zlib encontrado no offset ${skipBytes}, descomprimindo...`);
+          const pako = await getPako();
           const decompressed = pako.inflate(offsetData);
           return decompressed.buffer;
         }
@@ -201,7 +219,58 @@ export function decodeOZJ(buffer: ArrayBuffer): ArrayBuffer {
   }
 }
 
-export function encodeOZJ(jpegBuffer: ArrayBuffer, useXOR: boolean = false, useZlib: boolean = false): ArrayBuffer {
+// Versão síncrona para compatibilidade (apenas JPEG direto, sem compressão)
+export function decodeOZJ(buffer: ArrayBuffer): ArrayBuffer {
+  try {
+    const data = new Uint8Array(buffer);
+    
+    // Validação básica
+    if (!data || data.length < 2) {
+      throw new Error('Arquivo OZJ muito pequeno (mínimo 2 bytes)');
+    }
+    
+    // Detecta se é JPEG direto (magic number: 0xFF 0xD8)
+    const isJPEG = data.length >= 2 && data[0] === 0xFF && data[1] === 0xD8;
+    
+    // Detecta se está comprimido (zlib magic numbers: 0x78)
+    const isCompressed = data.length >= 2 && 
+                        data[0] === 0x78 && 
+                        (data[1] === 0x9C || data[1] === 0x01 || data[1] === 0xDA || data[1] === 0x5E);
+    
+    // Se comprimido, requer versão assíncrona
+    if (isCompressed) {
+      throw new Error('OZJ comprimido requer decodeOZJAsync()');
+    }
+    
+    // Se JPEG direto, pode processar síncrono (sem bibliotecas externas)
+    if (isJPEG) {
+      // Detecta header de 24 bytes (formato Pentium Tools)
+      if (data.length >= 48) {
+        const headerMatches = data.slice(0, 24).every((byte, i) => byte === data[i + 24]);
+        if (headerMatches) {
+          return buffer.slice(24);
+        }
+      }
+      return buffer;
+    }
+    
+    // Tenta XOR
+    const decoded = new Uint8Array(data.length);
+    for (let i = 0; i < data.length; i++) {
+      decoded[i] = data[i] ^ 0xFC;
+    }
+    if (decoded.length >= 2 && decoded[0] === 0xFF && decoded[1] === 0xD8) {
+      return decoded.buffer;
+    }
+    
+    throw new Error('Formato OZJ não reconhecido - use decodeOZJAsync() para formatos comprimidos');
+  } catch (error) {
+    console.error('[OZJ] Erro ao decodificar:', error);
+    throw error;
+  }
+}
+
+export async function encodeOZJ(jpegBuffer: ArrayBuffer, useXOR: boolean = false, useZlib: boolean = false): Promise<ArrayBuffer> {
   try {
     const jpegData = new Uint8Array(jpegBuffer);
     
@@ -214,8 +283,9 @@ export function encodeOZJ(jpegBuffer: ArrayBuffer, useXOR: boolean = false, useZ
       }
       return encoded.buffer;
     } else if (useZlib) {
-      // Comprimir JPEG com zlib (formato comprimido)
+      // Comprimir JPEG com zlib (formato comprimido) - lazy load pako
       console.log('[OZJ] Codificando com zlib...');
+      const pako = await getPako();
       const compressed = pako.deflate(jpegData);
       return compressed.buffer;
     } else {
@@ -244,12 +314,13 @@ export function encodeOZJ(jpegBuffer: ArrayBuffer, useXOR: boolean = false, useZ
 }
 
 export async function ozjToDataURL(buffer: ArrayBuffer): Promise<string> {
-  const jpegBuffer = decodeOZJ(buffer);
+  const jpegBuffer = await decodeOZJAsync(buffer);
   const uint8 = new Uint8Array(jpegBuffer);
   
   try {
-    // Tenta decodificar com jpeg-js (JS puro)
+    // Tenta decodificar com jpeg-js (JS puro) - lazy load
     console.log('[OZJ] Decodificando JPEG com jpeg-js...');
+    const jpeg = await getJpeg();
     const decoded = jpeg.decode(uint8, { useTArray: true });
     console.log('[OZJ] JPEG decodificado:', decoded.width, 'x', decoded.height);
     

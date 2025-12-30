@@ -10,7 +10,10 @@
     "dev:electron": "wait-on http://localhost:5173 && electron .",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "electron:build": "electron-builder"
+    "electron:build": "electron-builder",
+    "remove-integrity": "node remove-asar-integrity.js",
+    "remove-integrity:portable": "node remove-asar-integrity.js dist-electron/MuTools-1.0.0-portable.exe",
+    "verificar-integridade": "node verificar-integridade-removida.js"
   },
   "keywords": [
     "mu-online",
@@ -45,6 +48,7 @@
     "electron": "^39.2.7",
     "electron-builder": "^25.1.8",
     "postcss": "^8.4.49",
+    "rcedit": "^5.0.2",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.2",
     "vite": "^6.0.5",
@@ -54,6 +58,7 @@
     "appId": "com.devfrostty.mutools",
     "productName": "MuTools",
     "asar": true,
+    "disableSanityCheckAsar": true,
     "directories": {
       "output": "dist-electron"
     },
@@ -94,7 +99,9 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "installerLanguages": ["pt_BR"],
+      "installerLanguages": [
+        "pt_BR"
+      ],
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico",
       "installerHeaderIcon": "build/icon.ico",

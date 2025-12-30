@@ -460,15 +460,15 @@ function createWindow() {
     },
   });
 
-  // Mostra quando pronto e fecha splash (com delay minimo)
+  // Mostra quando pronto e fecha splash (delay mínimo reduzido para performance)
   const splashStartTime = Date.now();
   
   mainWindow.once('ready-to-show', () => {
-    const MIN_SPLASH_DURATION = 3500; // 3.5 segundos minimo
+    const MIN_SPLASH_DURATION = 500; // 0.5 segundos apenas para animação suave
     const elapsedTime = Date.now() - splashStartTime;
     const remainingTime = Math.max(0, MIN_SPLASH_DURATION - elapsedTime);
     
-    // Aguarda tempo minimo antes de fechar splash
+    // Aguarda tempo mínimo antes de fechar splash (apenas para transição suave)
     setTimeout(() => {
       if (splashWindow && !splashWindow.isDestroyed()) {
         splashWindow.close();

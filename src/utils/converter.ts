@@ -1,7 +1,7 @@
 import { ConversionOptions, ImageData } from '../types';
 import { decodeTGA, encodeTGA } from './tga';
-import { decodeOZT, encodeOZT } from './ozt';
-import { decodeOZJ, encodeOZJ } from './ozj';
+import { decodeOZTAsync, encodeOZT } from './ozt';
+import { decodeOZJAsync, encodeOZJ } from './ozj';
 import { electronService } from '../services/electronService';
 
 export async function convertFiles(options: ConversionOptions): Promise<void> {
@@ -295,7 +295,7 @@ async function pngToOzt(pngPath: string, outputFolder?: string): Promise<void> {
         console.log('[PNG→OZT] Dimensoes da imagem:', data.width, 'x', data.height, 'pixels');
         console.log('[PNG→OZT] Total de pixels:', data.width * data.height);
         
-        const oztBuffer = encodeOZT(data);
+        const oztBuffer = await encodeOZT(data, false);
         const filename = (await electronService.getBasename(pngPath)).replace(/\.png$/i, '.ozt');
         const outputPath = outputFolder 
           ? await electronService.joinPath(outputFolder, filename)
@@ -343,7 +343,7 @@ async function oztToPng(oztPath: string, outputFolder?: string): Promise<void> {
     uint8Array.byteOffset + uint8Array.byteLength
   ) as ArrayBuffer;
   
-  const imageData = decodeOZT(arrayBuffer);
+  const imageData = await decodeOZTAsync(arrayBuffer);
   
   // Valida resultado
   if (!imageData || imageData.width <= 0 || imageData.height <= 0) {
@@ -414,7 +414,7 @@ async function oztToTga(oztPath: string, outputFolder?: string): Promise<void> {
     uint8Array.byteOffset + uint8Array.byteLength
   ) as ArrayBuffer;
   
-  const imageData = decodeOZT(arrayBuffer);
+  const imageData = await decodeOZTAsync(arrayBuffer);
   
   // Valida resultado
   if (!imageData || imageData.width <= 0 || imageData.height <= 0) {
@@ -463,7 +463,7 @@ async function ozjToJpg(ozjPath: string, outputFolder?: string): Promise<void> {
   console.log('[OZJ→JPG] ========================================');
   console.log('[OZJ→JPG] Arquivo de origem:', ozjPath);
   
-  const jpgBuffer = decodeOZJ(arrayBuffer);
+  const jpgBuffer = await decodeOZJAsync(arrayBuffer);
   
   // Valida resultado
   if (!jpgBuffer || jpgBuffer.byteLength < 2) {
@@ -523,7 +523,7 @@ async function jpgToOzj(jpgPath: string, outputFolder?: string): Promise<void> {
   
   // Codifica JPEG para OZJ (JPEG direto, sem compressão - formato compatível com Pentium Tools e o jogo)
   // Formato: JPEG direto (FF D8) - igual ao Pentium Tools
-  const ozjBuffer = encodeOZJ(arrayBuffer, false, false);
+  const ozjBuffer = await encodeOZJ(arrayBuffer, false, false);
   
   // Valida resultado
   if (!ozjBuffer || ozjBuffer.byteLength === 0) {

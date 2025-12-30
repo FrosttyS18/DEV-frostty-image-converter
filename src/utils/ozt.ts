@@ -1,4 +1,3 @@
-import pako from 'pako';
 import { ImageData } from '../types';
 import { decodeTGA, encodeTGA } from './tga';
 
@@ -7,7 +6,17 @@ import { decodeTGA, encodeTGA } from './tga';
  * Estrutura: [dados zlib comprimidos do TGA]
  */
 
-export function decodeOZT(buffer: ArrayBuffer): ImageData {
+// Lazy load pako apenas quando necessário
+let pakoModule: typeof import('pako') | null = null;
+
+async function getPako() {
+  if (!pakoModule) {
+    pakoModule = await import('pako');
+  }
+  return pakoModule;
+}
+
+export async function decodeOZTAsync(buffer: ArrayBuffer): Promise<ImageData> {
   try {
     const data = new Uint8Array(buffer);
     
@@ -22,7 +31,8 @@ export function decodeOZT(buffer: ArrayBuffer): ImageData {
                         (data[1] === 0x9C || data[1] === 0x01 || data[1] === 0xDA || data[1] === 0x5E);
     
     if (isCompressed) {
-      // Está comprimido: descomprime primeiro
+      // Está comprimido: descomprime primeiro (lazy load pako)
+      const pako = await getPako();
       const decompressed = pako.inflate(data);
       return decodeTGA(decompressed.buffer);
     } else {
@@ -52,15 +62,61 @@ export function decodeOZT(buffer: ArrayBuffer): ImageData {
   }
 }
 
-export function encodeOZT(imageData: ImageData, useZlib: boolean = false): ArrayBuffer {
+// Mantém função síncrona para compatibilidade (sem compressão)
+export function decodeOZT(buffer: ArrayBuffer): ImageData {
+  try {
+    const data = new Uint8Array(buffer);
+    
+    // Validação básica
+    if (!data || data.length < 18) {
+      throw new Error('Arquivo OZT muito pequeno (mínimo 18 bytes para header TGA)');
+    }
+    
+    // Detecta se está comprimido (zlib magic numbers: 0x78, 0x9C ou 0x78, 0x01, etc)
+    const isCompressed = data.length >= 2 && 
+                        data[0] === 0x78 && 
+                        (data[1] === 0x9C || data[1] === 0x01 || data[1] === 0xDA || data[1] === 0x5E);
+    
+    if (isCompressed) {
+      // Está comprimido: requer função assíncrona
+      throw new Error('OZT comprimido requer decodeOZTAsync()');
+    } else {
+      // Formato customizado do Mu Online: header TGA começa no byte 4
+      // Tenta offset 4 primeiro (mais comum), depois outros
+      const offsets = [4, 0, 2, 8, 16, 32];
+      
+      for (const skipBytes of offsets) {
+        try {
+          const offsetBuffer = buffer.slice(skipBytes);
+          const result = decodeTGA(offsetBuffer);
+          if (skipBytes > 0) {
+            console.log(`[OZT] Arquivo usa offset ${skipBytes} bytes (formato Mu Online)`);
+          }
+          return result;
+        } catch (err) {
+          // Tenta próximo offset silenciosamente
+        }
+      }
+      
+      // Se nenhum offset funcionou, lança erro
+      throw new Error('Não consegui encontrar header TGA válido no arquivo');
+    }
+  } catch (error) {
+    console.error('Erro ao decodificar OZT:', error);
+    throw new Error(`Falha ao decodificar OZT: ${error}`);
+  }
+}
+
+export async function encodeOZT(imageData: ImageData, useZlib: boolean = false): Promise<ArrayBuffer> {
   try {
     // Codificar como TGA
     const tgaBuffer = encodeTGA(imageData);
     const tgaData = new Uint8Array(tgaBuffer);
     
     if (useZlib) {
-      // Comprimir com zlib (formato comprimido)
+      // Comprimir com zlib (formato comprimido) - lazy load pako
       console.log('[OZT] Codificando com zlib...');
+      const pako = await getPako();
       const compressed = pako.deflate(tgaData);
       return compressed.buffer;
     } else {
@@ -85,7 +141,7 @@ export function encodeOZT(imageData: ImageData, useZlib: boolean = false): Array
 }
 
 export async function oztToDataURL(buffer: ArrayBuffer): Promise<string> {
-  const imageData = decodeOZT(buffer);
+  const imageData = await decodeOZTAsync(buffer);
   
   // Criar canvas para converter para PNG
   const canvas = document.createElement('canvas');
