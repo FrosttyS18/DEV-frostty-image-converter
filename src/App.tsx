@@ -65,6 +65,21 @@ function App() {
     await convert(type, [file], outputFolder);
   };
 
+  const handleConvertMultiple = async (files: FileInfo[], type: ConversionType) => {
+    console.log('[App] Iniciando conversao multipla, tipo:', type, 'arquivos:', files.length);
+    
+    // Pergunta onde salvar UMA VEZ para todos os arquivos
+    const outputFolder = await electronService.selectOutputFolder();
+    
+    if (!outputFolder) {
+      console.log('[App] Usuario cancelou selecao de pasta');
+      return;
+    }
+    
+    console.log('[App] Convertendo', files.length, 'arquivo(s) para:', outputFolder);
+    await convert(type, files, outputFolder);
+  };
+
   // Controla toasts
   useEffect(() => {
     if (successMessage) setShowSuccessToast(true);
@@ -112,10 +127,21 @@ function App() {
           selectedFile={selectedFile}
           onSelectFile={handleSelectFile}
           onConvert={handleConvert}
+          onConvertMultiple={handleConvertMultiple}
           onSelectFolder={handleSelectFolder}
           onReloadFolder={reloadFolder}
           isConverting={isConverting}
           folderPath={currentFolderPath}
+          onShowToast={(message, type = 'info') => {
+            setInfoMessage(message);
+            if (type === 'error') {
+              setShowErrorToast(true);
+            } else if (type === 'success') {
+              setShowSuccessToast(true);
+            } else {
+              setShowInfoToast(true);
+            }
+          }}
         />
         
         {/* Canvas Visualizador */}

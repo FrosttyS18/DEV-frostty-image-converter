@@ -19,7 +19,9 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [isSpacePressed, setIsSpacePressed] = useState(false);
+  const [isSpacePressed, setIsSpacePressed] = useState(false); // Estado interno para tecla espaço
+  const isSpacePressedRef = useRef(false); // Ref para evitar re-renders desnecessários
+  const [isPanModeActive, setIsPanModeActive] = useState(false); // Estado do botão (só muda ao clicar)
   const containerRef = useRef<HTMLDivElement>(null);
   const autoFitZoomRef = useRef<number>(1);
   
@@ -52,17 +54,38 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
     setPosition({ x: 0, y: 0 }); // Centraliza
   }, [imageInfo]);
   
-  // Listener para teclas (ESPACO = pan, Ctrl+0 = auto-fit)
+  // Listener para teclas (ESPACO = pan temporário, Ctrl+0 = auto-fit)
   useEffect(() => {
+    if (!previewUrl) return;
+    
     const handleKeyDown = (e: KeyboardEvent) => {
-      // ESPACO: ativa pan mode
-      if (e.code === 'Space' && !e.repeat && previewUrl) {
+      // ESPACO: permite pan temporário (NÃO ativa o botão visualmente)
+      if (e.code === 'Space' && !e.repeat) {
+        const target = e.target as HTMLElement;
+        // Ignora se estiver digitando em um input
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+          return;
+        }
+        // Ignora se estiver em um botão ou elemento interativo
+        if (target.closest('button') || target.closest('input') || target.closest('textarea')) {
+          return;
+        }
+        // Atualiza ref imediatamente (sem re-render)
+        if (!isSpacePressedRef.current) {
+          isSpacePressedRef.current = true;
+          // Só atualiza estado se necessário para o cursor
+          setIsSpacePressed(true);
+        }
+        // Previne scroll da página, mas NÃO interfere com eventos de mouse
         e.preventDefault();
-        setIsSpacePressed(true);
       }
       
       // Ctrl+0: reseta zoom para auto-fit
-      if (e.ctrlKey && e.key === '0' && previewUrl) {
+      if (e.ctrlKey && e.key === '0') {
+        const target = e.target as HTMLElement;
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+          return;
+        }
         e.preventDefault();
         console.log('[Canvas] Resetando para auto-fit:', autoFitZoomRef.current);
         setZoom(autoFitZoomRef.current);
@@ -72,12 +95,27 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
     
     const handleKeyUp = (e: KeyboardEvent) => {
       if (e.code === 'Space') {
+        const target = e.target as HTMLElement;
+        // Ignora se estiver digitando em um input
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+          return;
+        }
+        // Ignora se estiver em um botão ou elemento interativo
+        if (target.closest('button') || target.closest('input') || target.closest('textarea')) {
+          return;
+        }
+        // Atualiza ref imediatamente (sem re-render)
+        if (isSpacePressedRef.current) {
+          isSpacePressedRef.current = false;
+          // Só atualiza estado se necessário para o cursor
+          setIsSpacePressed(false);
+        }
+        // Previne comportamento padrão, mas NÃO interfere com eventos de mouse
         e.preventDefault();
-        setIsSpacePressed(false);
-        setIsDragging(false);
       }
     };
     
+    // Usa bubble phase normal (não capture) para evitar conflitos
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
     
@@ -108,11 +146,27 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
     return () => container.removeEventListener('wheel', handleWheel);
   }, []);
   
-  // Pan/arrastar: ESPACO + clique esquerdo para caminhar
+  // Pan/arrastar: ESPACO + clique esquerdo OU pan mode ativo OU zoom > 1
   const handleMouseDown = (e: React.MouseEvent) => {
-    // Só ativa pan se ESPACO estiver pressionado OU se zoom > 1
-    if (isSpacePressed || zoom > 1) {
+    // Ignora se clicou em um botão ou elemento interativo
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'BUTTON' || target.closest('button')) {
+      return;
+    }
+    
+    // Ignora botão direito ou meio
+    if (e.button !== 0) {
+      return;
+    }
+    
+    // Ativa pan se:
+    // 1. ESPAÇO está pressionado (pan temporário) - usa ref para verificação mais rápida
+    // 2. Pan mode está ativo (botão clicado)
+    // 3. Zoom > 1 (sempre permite arrastar quando zoomado)
+    if (isSpacePressedRef.current || isPanModeActive || zoom > 1) {
+      // Previne seleção de texto e outros comportamentos padrão
       e.preventDefault();
+      // NÃO usa stopPropagation para não interferir com outros handlers
       setIsDragging(true);
       setDragStart({ 
         x: e.clientX, 
@@ -122,27 +176,55 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
   };
   
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (isDragging) {
-      // Usa requestAnimationFrame para suavidade
-      requestAnimationFrame(() => {
-        const deltaX = e.clientX - dragStart.x;
-        const deltaY = e.clientY - dragStart.y;
+    if (isDragging && containerRef.current && imageInfo) {
+      // Calcula delta do movimento
+      const deltaX = e.clientX - dragStart.x;
+      const deltaY = e.clientY - dragStart.y;
+      
+      // Calcula limites para evitar que a imagem saia da tela
+      const container = containerRef.current;
+      const containerWidth = container.clientWidth - 64; // Padding
+      const containerHeight = container.clientHeight - 64;
+      
+      const scaledWidth = imageInfo.width * zoom;
+      const scaledHeight = imageInfo.height * zoom;
+      
+      setPosition(prev => {
+        // Calcula nova posição
+        let newX = prev.x + deltaX;
+        let newY = prev.y + deltaY;
         
-        setPosition(prev => ({
-          x: prev.x + deltaX,
-          y: prev.y + deltaY
-        }));
+        // Aplica limites apenas se a imagem for maior que o container
+        // Se a imagem for menor, permite movimento livre (sem limites rígidos)
+        if (scaledWidth > containerWidth) {
+          // Limites: a imagem não pode sair completamente da área visível
+          const maxX = (scaledWidth - containerWidth) / 2;
+          const minX = -maxX;
+          newX = Math.max(minX, Math.min(maxX, newX));
+        }
+        // Se a imagem é menor que o container, permite movimento livre (sem forçar a 0)
         
-        setDragStart({
-          x: e.clientX,
-          y: e.clientY
-        });
+        if (scaledHeight > containerHeight) {
+          // Limites: a imagem não pode sair completamente da área visível
+          const maxY = (scaledHeight - containerHeight) / 2;
+          const minY = -maxY;
+          newY = Math.max(minY, Math.min(maxY, newY));
+        }
+        // Se a imagem é menor que o container, permite movimento livre (sem forçar a 0)
+        
+        return { x: newX, y: newY };
+      });
+      
+      setDragStart({
+        x: e.clientX,
+        y: e.clientY
       });
     }
   };
   
   const handleMouseUp = () => {
     setIsDragging(false);
+    // O pan será desativado quando soltar o espaço (no handleKeyUp)
   };
 
   return (
@@ -150,20 +232,46 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
       {/* Header com info do arquivo */}
       <div className="flex items-stretch gap-4">
         <div className="glass-strong rounded-2xl px-4 py-3 flex-1">
-          <h2 className="text-white text-lg font-semibold truncate" title={selectedFile?.name}>
+          <h2 className="text-white text-lg font-semibold truncate relative group/filename inline-block">
             {selectedFile?.name || 'Nenhum arquivo selecionado'}
+            {selectedFile?.name && (
+              <div className="absolute bottom-full left-0 mb-2 px-2 py-1 
+                            bg-black/90 text-white text-xs rounded-lg whitespace-nowrap
+                            opacity-0 group-hover/filename:opacity-100 transition-opacity duration-200
+                            pointer-events-none z-50">
+                {selectedFile.name}
+                <div className="absolute top-full left-4 -mt-1
+                              border-4 border-transparent border-t-black/90"></div>
+              </div>
+            )}
           </h2>
           <div className="flex items-center gap-2 mt-0.5 text-xs">
             {imageInfo && (
-              <span className="text-purple-300">
+              <span className="text-purple-300 relative group/dimensions inline-block">
                 {imageInfo.width}×{imageInfo.height}
+                <div className="absolute bottom-full left-0 mb-2 px-2 py-1 
+                              bg-black/90 text-white text-xs rounded-lg whitespace-nowrap
+                              opacity-0 group-hover/dimensions:opacity-100 transition-opacity duration-200
+                              pointer-events-none z-50">
+                  Dimensões: {imageInfo.width}×{imageInfo.height} pixels
+                  <div className="absolute top-full left-4 -mt-1
+                                border-4 border-transparent border-t-black/90"></div>
+                </div>
               </span>
             )}
             {selectedFile && (
               <>
                 {imageInfo && <span className="text-white/30">•</span>}
-                <span className="text-purple-300/80">
+                <span className="text-purple-300/80 relative group/filesize inline-block">
                   {formatFileSize(selectedFile.size)}
+                  <div className="absolute bottom-full left-0 mb-2 px-2 py-1 
+                                bg-black/90 text-white text-xs rounded-lg whitespace-nowrap
+                                opacity-0 group-hover/filesize:opacity-100 transition-opacity duration-200
+                                pointer-events-none z-50">
+                    Tamanho do arquivo: {formatFileSize(selectedFile.size)}
+                    <div className="absolute top-full left-4 -mt-1
+                                  border-4 border-transparent border-t-black/90"></div>
+                  </div>
                 </span>
               </>
             )}
@@ -184,16 +292,19 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
       {/* Canvas área */}
       <div 
         ref={containerRef}
-        className="glass rounded-2xl flex-1 min-w-0 min-h-0 p-8 flex items-center justify-center overflow-hidden relative"
+        className="glass rounded-2xl flex-1 min-w-0 min-h-0 p-8 flex items-center justify-center overflow-hidden relative outline-none"
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
+        tabIndex={-1}
         style={{ 
-          cursor: (zoom > 1 || isSpacePressed) 
+          cursor: (zoom > 1 || isSpacePressed || isPanModeActive) 
             ? (isDragging ? 'grabbing' : 'grab') 
-            : 'default' 
+            : 'default',
+          outline: 'none' // Remove contorno ao clicar
         }}
+        onFocus={(e) => e.target.blur()} // Remove foco automaticamente
       >
         {isLoading ? (
           <div className="text-center">
@@ -263,49 +374,118 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
         <div className="glass rounded-2xl px-4 py-2 flex items-center justify-between gap-4">
           {/* Controles de zoom */}
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setZoom(Math.max(0.1, zoom - 0.1))}
-              className="glass-strong rounded-lg p-2 hover:bg-white/10 transition-all border border-white/10"
-              title="Zoom Out"
-            >
-              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7" />
-              </svg>
-            </button>
+            <div className="relative group/zoomout">
+              <button
+                onClick={() => setZoom(Math.max(0.1, zoom - 0.1))}
+                className="glass-strong rounded-lg p-2 hover:bg-white/10 transition-all border border-white/10"
+              >
+                <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7" />
+                </svg>
+              </button>
+              {/* Tooltip */}
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 
+                            bg-black/90 text-white text-xs rounded-lg whitespace-nowrap
+                            opacity-0 group-hover/zoomout:opacity-100 transition-opacity duration-200
+                            pointer-events-none z-50">
+                Diminuir zoom
+                <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1
+                              border-4 border-transparent border-t-black/90"></div>
+              </div>
+            </div>
             
-            <button
-              onClick={() => setZoom(Math.min(5, zoom + 0.1))}
-              className="glass-strong rounded-lg p-2 hover:bg-white/10 transition-all border border-white/10"
-              title="Zoom In"
-            >
-              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-              </svg>
-            </button>
+            <div className="relative group/zoomin">
+              <button
+                onClick={() => setZoom(Math.min(5, zoom + 0.1))}
+                className="glass-strong rounded-lg p-2 hover:bg-white/10 transition-all border border-white/10"
+              >
+                <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                </svg>
+              </button>
+              {/* Tooltip */}
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 
+                            bg-black/90 text-white text-xs rounded-lg whitespace-nowrap
+                            opacity-0 group-hover/zoomin:opacity-100 transition-opacity duration-200
+                            pointer-events-none z-50">
+                Aumentar zoom
+                <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1
+                              border-4 border-transparent border-t-black/90"></div>
+              </div>
+            </div>
             
-            <button
-              onClick={() => { setZoom(autoFitZoomRef.current); setPosition({ x: 0, y: 0 }); }}
-              className="glass-strong rounded-lg px-3 py-2 hover:bg-white/10 transition-all border border-white/10 text-xs text-white font-medium"
-              title="Auto-fit"
-            >
-              Auto
-            </button>
+            <div className="relative group/auto">
+              <button
+                onClick={() => { setZoom(autoFitZoomRef.current); setPosition({ x: 0, y: 0 }); }}
+                className="glass-strong rounded-lg px-3 py-2 hover:bg-white/10 transition-all border border-white/10 text-xs text-white font-medium"
+              >
+                Auto
+              </button>
+              {/* Tooltip */}
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 
+                            bg-black/90 text-white text-xs rounded-lg whitespace-nowrap
+                            opacity-0 group-hover/auto:opacity-100 transition-opacity duration-200
+                            pointer-events-none z-50">
+                Ajustar zoom automaticamente
+                <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1
+                              border-4 border-transparent border-t-black/90"></div>
+              </div>
+            </div>
             
-            <button
-              onClick={() => setIsSpacePressed(!isSpacePressed)}
-              className={`glass-strong rounded-lg p-2 hover:bg-white/10 transition-all border border-white/10
-                         ${isSpacePressed ? 'bg-purple-500/20 border-purple-400/30' : ''}`}
-              title="Pan/Mover"
-            >
-              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11" />
-              </svg>
-            </button>
+            <div className="relative group/pan">
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  // Toggle do botão pan mode (só muda ao clicar, não com tecla espaço)
+                  setIsPanModeActive(prev => !prev);
+                }}
+                onMouseDown={(e) => {
+                  // Previne que o clique no botão interfira com o pan
+                  e.stopPropagation();
+                }}
+                className={`
+                  glass-strong rounded-lg p-2 transition-all border
+                  ${isPanModeActive 
+                    ? 'bg-purple-500/20 border-purple-400/50 hover:bg-purple-500/30 hover:border-purple-400/60' 
+                    : 'border-white/10 hover:bg-white/10 hover:border-purple-400/30'
+                  }
+                `}
+              >
+                <svg 
+                  className={`w-4 h-4 transition-colors ${
+                    isPanModeActive ? 'text-purple-300' : 'text-white'
+                  }`} 
+                  fill="none" 
+                  viewBox="0 0 24 24" 
+                  stroke="currentColor"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11" />
+                </svg>
+              </button>
+              {/* Tooltip */}
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 
+                            bg-black/90 text-white text-xs rounded-lg whitespace-nowrap
+                            opacity-0 group-hover/pan:opacity-100 transition-opacity duration-200
+                            pointer-events-none z-50">
+                {isPanModeActive ? 'Desativar' : 'Ativar'} modo pan permanente (ou pressione ESPAÇO temporariamente)
+                <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1
+                              border-4 border-transparent border-t-black/90"></div>
+              </div>
+            </div>
           </div>
           
           {/* Indicador de zoom */}
-          <div className="text-white/60 text-xs font-mono">
+          <div className="text-white/60 text-xs font-mono relative group/zoomdisplay inline-block">
             Zoom: {Math.round(zoom * 100)}%
+            <div className="absolute bottom-full right-0 mb-2 px-2 py-1 
+                          bg-black/90 text-white text-xs rounded-lg whitespace-nowrap
+                          opacity-0 group-hover/zoomdisplay:opacity-100 transition-opacity duration-200
+                          pointer-events-none z-50">
+              Nível de zoom atual: {Math.round(zoom * 100)}%
+              <div className="absolute top-full right-4 -mt-1
+                            border-4 border-transparent border-t-black/90"></div>
+            </div>
           </div>
         </div>
       )}
