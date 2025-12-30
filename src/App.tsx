@@ -16,14 +16,13 @@ function App() {
   const [showInfoToast, setShowInfoToast] = useState(false);
   const [infoMessage, setInfoMessage] = useState<string>('');
   const [selectedFile, setSelectedFile] = useState<FileInfo | null>(null);
-  const [currentConversionType, setCurrentConversionType] = useState<ConversionType | null>(null);
   const [currentFolderPath, setCurrentFolderPath] = useState<string | null>(null);
   
   // Spotlight effect
   useGlowPointer();
   
   // Hook de seleção de arquivos
-  const { selectedFiles, isLoading, error: fileError, selectFolder, clearFiles } = useFileSelection();
+  const { selectedFiles, isLoading, error: fileError, selectFolder } = useFileSelection();
   
   // Hook de conversao
   const { 
@@ -41,14 +40,14 @@ function App() {
   
   // Funcao para selecionar pasta
   const handleSelectFolder = async () => {
-    const result = await electronService.selectFolder();
-    
-    if (!result || result.canceled) {
-      return;
-    }
-    
-    setCurrentFolderPath(result.filePath);
     await selectFolder();
+    
+    // Pega o caminho da primeira arquivo para extrair a pasta
+    if (selectedFiles.length > 0) {
+      const firstFilePath = selectedFiles[0].path;
+      const folderPath = await electronService.getDirname(firstFilePath);
+      setCurrentFolderPath(folderPath);
+    }
     
     // Mostra toast quando carregar
     if (selectedFiles.length > 0) {
@@ -67,20 +66,17 @@ function App() {
 
   const handleConvert = async (file: FileInfo, type: ConversionType) => {
     console.log('[App] Iniciando conversao, tipo:', type, 'arquivo:', file.name);
-    setCurrentConversionType(type);
     
     // Pergunta onde salvar
     const outputFolder = await electronService.selectOutputFolder();
     
     if (!outputFolder) {
       console.log('[App] Usuario cancelou selecao de pasta');
-      setCurrentConversionType(null);
       return;
     }
     
     console.log('[App] Convertendo arquivo:', file.name);
     await convert(type, [file], outputFolder);
-    setCurrentConversionType(null);
   };
 
   // Controla toasts

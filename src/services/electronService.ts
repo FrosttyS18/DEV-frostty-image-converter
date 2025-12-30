@@ -201,6 +201,14 @@ class ElectronService {
   }
 
   /**
+   * Obtém diretório do arquivo (via IPC)
+   */
+  async getDirname(filePath: string): Promise<string> {
+    const api = this.getAPI();
+    return api.pathDirname(filePath);
+  }
+
+  /**
    * Minimiza janela
    */
   minimizeWindow(): void {
