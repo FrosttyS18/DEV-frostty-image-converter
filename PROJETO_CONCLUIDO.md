@@ -303,5 +303,5 @@ Aplicação completa e funcional para converter imagens do Mu Online com:
 
 ---
 
-**DEV® Frostty** - Season 18 Tools
+**DEV® Frostty** - Muonline Tools
 *Made with 💜 for the Mu Online community*
