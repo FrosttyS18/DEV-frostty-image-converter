@@ -10,19 +10,13 @@ export const useFileSelection = () => {
   const [selectedFiles, setSelectedFiles] = useState<FileInfo[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [currentFolderPath, setCurrentFolderPath] = useState<string | null>(null);
 
-  const selectFolder = useCallback(async () => {
+  const loadFilesFromFolder = useCallback(async (folderPath: string) => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const folderPath = await electronService.selectFolder();
-      
-      if (!folderPath) {
-        setIsLoading(false);
-        return;
-      }
-
       const files = await electronService.readDirectory(folderPath);
       
       // Primeiro filtra arquivos por extensão
@@ -52,13 +46,14 @@ export const useFileSelection = () => {
 
       // Verifica se encontrou arquivos
       if (fileInfos.length === 0) {
-        setError('Esta pasta não contém arquivos compatíveis (PNG, TGA, OZT, OZJ).');
+        setError('Esta pasta não contém arquivos compatíveis (PNG, TGA, OZT, OZJ, JPG).');
         setSelectedFiles([]);
         setIsLoading(false);
         return;
       }
 
       setSelectedFiles(fileInfos);
+      setCurrentFolderPath(folderPath);
     } catch (err) {
       let errorMessage = 'Não foi possível acessar esta pasta.';
       
@@ -79,6 +74,25 @@ export const useFileSelection = () => {
     }
   }, []);
 
+  const selectFolder = useCallback(async () => {
+    const folderPath = await electronService.selectFolder();
+    
+    if (!folderPath) {
+      return;
+    }
+
+    await loadFilesFromFolder(folderPath);
+  }, [loadFilesFromFolder]);
+
+  const reloadFiles = useCallback(async () => {
+    if (!currentFolderPath) {
+      setError('Nenhuma pasta selecionada para recarregar.');
+      return;
+    }
+    
+    await loadFilesFromFolder(currentFolderPath);
+  }, [currentFolderPath, loadFilesFromFolder]);
+
   const clearFiles = useCallback(() => {
     setSelectedFiles([]);
     setError(null);
@@ -89,6 +103,8 @@ export const useFileSelection = () => {
     isLoading,
     error,
     selectFolder,
+    reloadFiles,
     clearFiles,
+    currentFolderPath,
   };
 };

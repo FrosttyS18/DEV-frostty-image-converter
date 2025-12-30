@@ -162,11 +162,11 @@ export function decodeOZJ(buffer: ArrayBuffer): ArrayBuffer {
 
 export function encodeOZJ(jpegBuffer: ArrayBuffer): ArrayBuffer {
   try {
-    // Comprimir JPEG com zlib
-    const jpegData = new Uint8Array(jpegBuffer);
-    const compressed = pako.deflate(jpegData);
-    
-    return compressed.buffer;
+    // OZJ do Mu Online é JPEG direto (sem compressão zlib adicional)
+    // JPEG já é um formato comprimido, então comprimir com zlib não ajuda
+    // e pode até aumentar o tamanho do arquivo
+    // Arquivos originais do Mu Online usam JPEG direto (header: FF D8)
+    return jpegBuffer;
   } catch (error) {
     console.error('Erro ao codificar OZJ:', error);
     throw new Error(`Falha ao codificar OZJ: ${error}`);

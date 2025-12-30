@@ -34,7 +34,6 @@ export async function loadImageAsDataUrl(filePath: string): Promise<string> {
         return `data:image/png;base64,${pngBase64}`;
         
       case '.jpg':
-      case '.jpeg':
         // Valida magic number JPEG (FF D8)
         if (uint8Array.length < 2 || uint8Array[0] !== 0xFF || uint8Array[1] !== 0xD8) {
           throw new Error('Arquivo JPEG inválido (magic number incorreto)');

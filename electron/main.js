@@ -175,7 +175,7 @@ function updateFileList(folderPath) {
   
   try {
     const files = fs.readdirSync(folderPath);
-    const supportedExtensions = ['.tga', '.png', '.ozj', '.ozt', '.jpg', '.jpeg'];
+    const supportedExtensions = ['.tga', '.png', '.ozj', '.ozt', '.jpg'];
     
     const fileList = files
       .filter(file => {
@@ -260,7 +260,7 @@ ipcMain.handle('read-directory', async (_event, folderPath) => {
 ipcMain.handle('get-file-stats', async (_event, filePath) => {
   try {
     const stats = fs.statSync(filePath);
-    return { ok: true, size: stats.size };
+    return { ok: true, size: stats.size, mtime: stats.mtimeMs };
   } catch (error) {
     return { ok: false, error: error.message };
   }

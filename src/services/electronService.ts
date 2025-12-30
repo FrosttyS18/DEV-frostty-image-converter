@@ -13,7 +13,7 @@ declare global {
       readFile: (filePath: string) => Promise<{ ok: boolean; data?: number[]; error?: string }>;
       writeFile: (filePath: string, data: number[]) => Promise<{ ok: boolean; error?: string }>;
       readDirectory: (folderPath: string) => Promise<{ ok: boolean; files?: string[]; error?: string }>;
-      getFileStats: (filePath: string) => Promise<{ ok: boolean; size?: number; error?: string }>;
+      getFileStats: (filePath: string) => Promise<{ ok: boolean; size?: number; mtime?: number; error?: string }>;
       
       // Converters
       // convertOzdToDds - removido (não implementado)
@@ -158,7 +158,7 @@ class ElectronService {
   /**
    * Obtém stats de arquivo
    */
-  async getFileStats(filePath: string): Promise<{ size: number }> {
+  async getFileStats(filePath: string): Promise<{ size: number; mtime: number }> {
     try {
       const api = this.getAPI();
       const result = await api.getFileStats(filePath);
@@ -167,7 +167,7 @@ class ElectronService {
         throw new Error(result.error || 'Erro ao obter stats');
       }
 
-      return { size: result.size || 0 };
+      return { size: result.size || 0, mtime: result.mtime || 0 };
     } catch (error) {
       console.error('[ElectronService] Erro ao obter stats:', error);
       throw new Error('Não foi possível obter informações do arquivo.');

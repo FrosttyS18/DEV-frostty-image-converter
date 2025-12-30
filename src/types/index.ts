@@ -10,6 +10,7 @@ export type ConversionType =
   | 'TGA_TO_PNG'
   | 'PNG_TO_OZT'
   | 'OZJ_TO_JPG'
+  | 'JPG_TO_OZJ'
   | 'OZT_TO_TGA';
 
 export interface ConversionOptions {

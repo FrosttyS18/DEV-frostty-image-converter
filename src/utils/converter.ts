@@ -1,7 +1,7 @@
 import { ConversionOptions, ImageData } from '../types';
 import { decodeTGA, encodeTGA } from './tga';
 import { decodeOZT, encodeOZT } from './ozt';
-import { decodeOZJ } from './ozj';
+import { decodeOZJ, encodeOZJ } from './ozj';
 import { electronService } from '../services/electronService';
 
 export async function convertFiles(options: ConversionOptions): Promise<void> {
@@ -75,11 +75,11 @@ async function convertFile(
       await ozjToJpg(filePath, outputFolder);
       break;
       
-    case 'OZT_TO_PNG':
-      if (ext !== '.ozt') {
-        throw new Error(`Arquivo "${filename}" não é OZT. Conversão OZT→PNG requer arquivos .ozt`);
+    case 'JPG_TO_OZJ':
+      if (ext !== '.jpg') {
+        throw new Error(`Arquivo "${filename}" não é JPG. Conversão JPG→OZJ requer arquivos .jpg`);
       }
-      await oztToPng(filePath, outputFolder);
+      await jpgToOzj(filePath, outputFolder);
       break;
       
     case 'OZT_TO_TGA':
@@ -533,4 +533,63 @@ async function ozjToJpg(ozjPath: string, outputFolder?: string): Promise<void> {
   }
   
   console.log('[OZJ→JPG] ========================================');
+}
+
+// JPG -> OZJ
+async function jpgToOzj(jpgPath: string, outputFolder?: string): Promise<void> {
+  const uint8Array = await electronService.readFile(jpgPath);
+  
+  // Validação básica
+  if (!uint8Array || uint8Array.length < 2) {
+    throw new Error('Arquivo JPG inválido (muito pequeno)');
+  }
+  
+  // Valida magic number JPEG (FF D8)
+  if (uint8Array[0] !== 0xFF || uint8Array[1] !== 0xD8) {
+    throw new Error('Arquivo JPG inválido (magic number incorreto)');
+  }
+  
+  const arrayBuffer = uint8Array.buffer.slice(
+    uint8Array.byteOffset,
+    uint8Array.byteOffset + uint8Array.byteLength
+  );
+  
+  console.log('[JPG→OZJ] ========================================');
+  console.log('[JPG→OZJ] Arquivo de origem:', jpgPath);
+  console.log('[JPG→OZJ] Tamanho do arquivo JPG:', arrayBuffer.byteLength, 'bytes');
+  
+  // Codifica JPG para OZJ (JPEG direto, sem zlib - formato original do Mu Online)
+  const ozjBuffer = encodeOZJ(arrayBuffer);
+  
+  // Valida resultado
+  if (!ozjBuffer || ozjBuffer.byteLength === 0) {
+    throw new Error('Falha ao codificar JPG para OZJ');
+  }
+  
+  console.log('[JPG→OZJ] Tamanho do OZJ:', ozjBuffer.byteLength, 'bytes');
+  console.log('[JPG→OZJ] Formato: JPEG direto (sem zlib, compatível com Mu Online)');
+  
+  const filename = (await electronService.getBasename(jpgPath)).replace(/\.jpg$/i, '.ozj');
+  const outputPath = outputFolder 
+    ? await electronService.joinPath(outputFolder, filename)
+    : jpgPath.replace(/\.jpg$/i, '.ozj');
+  
+  console.log('[JPG→OZJ] Pasta de destino:', outputFolder || 'mesma pasta do arquivo');
+  console.log('[JPG→OZJ] Nome do arquivo:', filename);
+  console.log('[JPG→OZJ] Caminho completo:', outputPath);
+  
+  await electronService.writeFile(outputPath, new Uint8Array(ozjBuffer));
+  
+  // Verifica se o arquivo foi criado
+  try {
+    const stats = await electronService.getFileStats(outputPath);
+    console.log('[JPG→OZJ] Arquivo criado com sucesso!');
+    console.log('[JPG→OZJ] Tamanho verificado:', stats.size, 'bytes');
+    console.log('[JPG→OZJ] Localizacao:', outputPath);
+  } catch (err) {
+    console.error('[JPG→OZJ] ERRO: Arquivo nao foi encontrado apos salvar!');
+    throw new Error(`Arquivo OZJ não foi criado: ${outputPath}`);
+  }
+  
+  console.log('[JPG→OZJ] ========================================');
 }

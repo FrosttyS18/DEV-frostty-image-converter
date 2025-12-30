@@ -11,13 +11,14 @@ interface CacheEntry {
   url: string;
   info: ImageInfo;
   timestamp: number;
+  fileMtime: number; // Data de modificação do arquivo quando foi cacheado
 }
 
 // Cache LRU global (compartilhado entre todas as instâncias)
 const previewCache = new Map<string, CacheEntry>();
 const MAX_CACHE_SIZE = 50;
 
-function addToCache(path: string, url: string, info: ImageInfo) {
+function addToCache(path: string, url: string, info: ImageInfo, fileMtime: number) {
   // Remove mais antigo se cache estiver cheio
   if (previewCache.size >= MAX_CACHE_SIZE) {
     let oldestKey: string | null = null;
@@ -40,7 +41,7 @@ function addToCache(path: string, url: string, info: ImageInfo) {
     }
   }
   
-  previewCache.set(path, { url, info, timestamp: Date.now() });
+  previewCache.set(path, { url, info, timestamp: Date.now(), fileMtime });
   console.log(`[Cache] Adicionado: ${path} (${previewCache.size}/${MAX_CACHE_SIZE})`);
 }
 
@@ -59,16 +60,6 @@ export const useImagePreview = (filePath: string | null, isThumbnail: boolean = 
   const currentUrlRef = useRef<string | null>(null);
 
   const loadPreview = useCallback(async (path: string) => {
-    // Verifica cache primeiro
-    const cached = previewCache.get(path);
-    if (cached) {
-      console.log('[Preview] Carregado do cache:', path);
-      setPreviewUrl(cached.url);
-      setImageInfo(cached.info);
-      setIsLoading(false);
-      return;
-    }
-    
     setIsLoading(true);
     setError(null);
 
@@ -76,16 +67,35 @@ export const useImagePreview = (filePath: string | null, isThumbnail: boolean = 
       const ext = (await electronService.getExtension(path)).toLowerCase();
       const stats = await electronService.getFileStats(path);
       const fileSize = stats.size;
+      const fileMtime = stats.mtime;
+      
+      // Verifica cache - só usa se arquivo não foi modificado
+      const cached = previewCache.get(path);
+      if (cached && cached.fileMtime === fileMtime) {
+        console.log('[Preview] Carregado do cache (arquivo não modificado):', path);
+        setPreviewUrl(cached.url);
+        setImageInfo(cached.info);
+        setIsLoading(false);
+        return;
+      } else if (cached && cached.fileMtime !== fileMtime) {
+        console.log('[Preview] Cache inválido - arquivo foi modificado:', path);
+        // Remove entrada antiga do cache
+        if (cached.url.startsWith('blob:')) {
+          URL.revokeObjectURL(cached.url);
+        }
+        previewCache.delete(path);
+      }
       
       // OTIMIZACAO: Arquivos grandes (> 5MB) podem precisar downsampling
       const isLargeFile = fileSize > 5 * 1024 * 1024;
       // Thumbnails usam dimensão muito menor
       const MAX_PREVIEW_DIMENSION = isThumbnail ? 256 : 2048;
 
-      if (ext === '.png') {
-        // PNG direto
+      if (ext === '.png' || ext === '.jpg') {
+        // PNG/JPG direto (formatos nativos do navegador)
         const data = await electronService.readFile(path);
-        const blob = new Blob([data.buffer as ArrayBuffer], { type: 'image/png' });
+        const mimeType = ext === '.png' ? 'image/png' : 'image/jpeg';
+        const blob = new Blob([data.buffer as ArrayBuffer], { type: mimeType });
         const url = URL.createObjectURL(blob);
         
         // Revoga URL anterior se existir
@@ -131,7 +141,7 @@ export const useImagePreview = (filePath: string | null, isThumbnail: boolean = 
           }
           
           // Adiciona ao cache
-          addToCache(path, finalUrl, imgInfo);
+          addToCache(path, finalUrl, imgInfo, fileMtime);
           currentUrlRef.current = finalUrl;
           setPreviewUrl(finalUrl);
         };
@@ -184,7 +194,7 @@ export const useImagePreview = (filePath: string | null, isThumbnail: boolean = 
           }
           
           // Adiciona ao cache
-          addToCache(path, finalUrl, imgInfo);
+          addToCache(path, finalUrl, imgInfo, fileMtime);
           currentUrlRef.current = finalUrl;
           setPreviewUrl(finalUrl);
         };
