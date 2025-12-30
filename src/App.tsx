@@ -41,27 +41,22 @@ function App() {
   // Funcao para selecionar pasta
   const handleSelectFolder = async () => {
     await selectFolder();
-    
-    // Pega o caminho da primeira arquivo para extrair a pasta
-    if (selectedFiles.length > 0) {
-      const firstFilePath = selectedFiles[0].path;
-      const folderPath = await electronService.getDirname(firstFilePath);
-      setCurrentFolderPath(folderPath);
-    }
-    
-    // Mostra toast quando carregar
-    if (selectedFiles.length > 0) {
-      setInfoMessage('Pasta carregada!');
-      setShowInfoToast(true);
-    }
   };
   
-  // Mostra toast quando lista atualiza
+  // Atualiza folderPath quando arquivos carregam
   useEffect(() => {
-    if (selectedFiles.length > 0 && !isLoading) {
-      setInfoMessage(`${selectedFiles.length} arquivos carregados`);
-      setShowInfoToast(true);
-    }
+    const updateFolderPath = async () => {
+      if (selectedFiles.length > 0 && !isLoading) {
+        const firstFilePath = selectedFiles[0].path;
+        const folderPath = await electronService.getDirname(firstFilePath);
+        setCurrentFolderPath(folderPath);
+        
+        setInfoMessage('Pasta carregada!');
+        setShowInfoToast(true);
+      }
+    };
+    
+    updateFolderPath();
   }, [selectedFiles.length, isLoading]);
 
   const handleConvert = async (file: FileInfo, type: ConversionType) => {

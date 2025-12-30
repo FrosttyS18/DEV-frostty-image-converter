@@ -148,24 +148,36 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
   return (
     <div className="flex-1 min-w-0 flex flex-col gap-4 animate-fade-in">
       {/* Header com info do arquivo */}
-      <div className="glass-strong rounded-2xl px-6 py-4">
-        <h2 className="text-white text-xl font-semibold truncate" title={selectedFile?.name}>
-          {selectedFile?.name || 'Nenhum arquivo selecionado'}
-        </h2>
-        <div className="flex items-center gap-3 mt-1 text-sm">
-          {imageInfo && (
-            <span className="text-purple-300">
-              {imageInfo.width} × {imageInfo.height} pixels
-            </span>
-          )}
-          {selectedFile && (
-            <>
-              {imageInfo && <span className="text-white/30">•</span>}
-              <span className="text-purple-300/80">
-                {formatFileSize(selectedFile.size)}
+      <div className="flex items-stretch gap-4">
+        <div className="glass-strong rounded-2xl px-4 py-3 flex-1">
+          <h2 className="text-white text-lg font-semibold truncate" title={selectedFile?.name}>
+            {selectedFile?.name || 'Nenhum arquivo selecionado'}
+          </h2>
+          <div className="flex items-center gap-2 mt-0.5 text-xs">
+            {imageInfo && (
+              <span className="text-purple-300">
+                {imageInfo.width}×{imageInfo.height}
               </span>
-            </>
-          )}
+            )}
+            {selectedFile && (
+              <>
+                {imageInfo && <span className="text-white/30">•</span>}
+                <span className="text-purple-300/80">
+                  {formatFileSize(selectedFile.size)}
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+        
+        {/* Logo ao lado do box - altura do box */}
+        <div className="flex items-center">
+          <img 
+            src="/src/assets/logo-dev-frostty.svg" 
+            alt="DEV Frostty" 
+            className="h-full w-auto opacity-80 drop-shadow-[0_0_20px_rgba(139,92,246,0.4)]"
+            style={{ maxHeight: '80px' }}
+          />
         </div>
       </div>
       
