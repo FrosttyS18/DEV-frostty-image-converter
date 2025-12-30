@@ -21,11 +21,10 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef({ x: 0, y: 0 });
   
-  // Controle do botão de Pan (Mãozinha)
-  const [isPanModeActive, setIsPanModeActive] = useState(false);
-  
   const containerRef = useRef<HTMLDivElement>(null);
   const autoFitZoomRef = useRef<number>(1);
+  
+  // REMOVIDO: const [isPanModeActive, setIsPanModeActive] = useState(false);
   
   // Sistema de inércia e física
   const velocityRef = useRef({ x: 0, y: 0 });
@@ -43,6 +42,7 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
     }
     
     const container = containerRef.current;
+    // Mantém o padding visual no cálculo (-64px)
     const containerWidth = container.clientWidth - 64; 
     const containerHeight = container.clientHeight - 64;
     
@@ -61,6 +61,7 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
     if (!container) return;
 
     const observer = new ResizeObserver(() => {
+      // Força re-render para recalcular limites se a janela mudar
       setPosition(prev => ({ ...prev }));
     });
 
@@ -68,29 +69,17 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
     return () => observer.disconnect();
   }, []);
   
-  // 3. BLOQUEADOR GERAL DE ESPAÇO (Scroll e Clique em Botão Focado)
+  // 3. Atalhos de Teclado (Apenas Ctrl+0 para resetar)
   useEffect(() => {
+    if (!previewUrl) return;
+    
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Se apertar Espaço
-      if (e.code === 'Space') {
+      // Ctrl+0: reseta zoom para auto-fit
+      if (e.ctrlKey && e.key === '0') {
         const target = e.target as HTMLElement;
-        
-        // Se estiver digitando texto, permite
         if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
           return;
         }
-
-        // Se o foco estiver em um botão, tira o foco imediatamente para não clicar nele
-        if (document.activeElement instanceof HTMLButtonElement) {
-          document.activeElement.blur();
-        }
-
-        // Bloqueia o scroll da página
-        e.preventDefault();
-      }
-      
-      // Atalho Ctrl+0
-      if (e.ctrlKey && e.key === '0') {
         e.preventDefault();
         setZoom(autoFitZoomRef.current);
         setPosition({ x: 0, y: 0 });
@@ -99,7 +88,7 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []); // Sem dependências
+  }, [previewUrl]);
   
   // 4. Zoom com Alt + Scroll
   useEffect(() => {
@@ -118,13 +107,14 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
     return () => container.removeEventListener('wheel', handleWheel);
   }, []);
   
-  // 5. Início do Arraste
+  // 5. Início do Arraste (Sempre ativo se tiver imagem)
   const handleMouseDown = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
     if (target.tagName === 'BUTTON' || target.closest('button')) return;
-    if (e.button !== 0) return;
+    if (e.button !== 0) return; // Apenas botão esquerdo
     
-    if (isPanModeActive || zoom > 1) {
+    // ALTERADO: Ativa sempre que tiver imagem carregada
+    if (previewUrl && imageInfo) {
       e.preventDefault();
       
       velocityRef.current = { x: 0, y: 0 };
@@ -351,7 +341,8 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
         onMouseUp={handleMouseUp}
         tabIndex={-1}
         style={{ 
-          cursor: (zoom > 1 || isPanModeActive) 
+          // ALTERADO: Cursor grab aparece sempre que tiver imagem carregada
+          cursor: (previewUrl && imageInfo)
             ? (isDragging ? 'grabbing' : 'grab') 
             : 'default',
           outline: 'none'
@@ -389,7 +380,7 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
               alt="Preview"
               className="w-full h-full object-contain rounded-lg shadow-2xl select-none"
               draggable={false}
-              style={{ imageRendering: 'pixelated' }}
+              style={{ imageRendering: 'auto' }}
             />
           </div>
         ) : (
@@ -413,7 +404,7 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
               <button
                 onClick={(e) => {
                   setZoom(Math.max(0.1, zoom - 0.1));
-                  e.currentTarget.blur(); // TIRA O FOCO APÓS CLICAR
+                  e.currentTarget.blur();
                 }}
                 className="glass-strong rounded-lg p-2 hover:bg-white/10 transition-all border border-white/10"
               >
@@ -432,7 +423,7 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
               <button
                 onClick={(e) => {
                   setZoom(Math.min(5, zoom + 0.1));
-                  e.currentTarget.blur(); // TIRA O FOCO APÓS CLICAR
+                  e.currentTarget.blur();
                 }}
                 className="glass-strong rounded-lg p-2 hover:bg-white/10 transition-all border border-white/10"
               >
@@ -452,7 +443,7 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
                 onClick={(e) => { 
                   setZoom(autoFitZoomRef.current); 
                   setPosition({ x: 0, y: 0 }); 
-                  e.currentTarget.blur(); // TIRA O FOCO APÓS CLICAR
+                  e.currentTarget.blur();
                 }}
                 className="glass-strong rounded-lg px-3 py-2 hover:bg-white/10 transition-all border border-white/10 text-xs text-white font-medium"
               >
@@ -464,30 +455,7 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
               </div>
             </div>
             
-            {/* Pan Mode Toggle */}
-            <div className="relative group/pan">
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setIsPanModeActive(prev => !prev);
-                  e.currentTarget.blur(); // TIRA O FOCO APÓS CLICAR (MUITO IMPORTANTE)
-                }}
-                className={`glass-strong rounded-lg p-2 transition-all border ${
-                  isPanModeActive 
-                    ? 'bg-purple-500/20 border-purple-400/50 hover:bg-purple-500/30' 
-                    : 'border-white/10 hover:bg-white/10'
-                }`}
-              >
-                <svg className={`w-4 h-4 ${isPanModeActive ? 'text-purple-300' : 'text-white'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11" />
-                </svg>
-              </button>
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-black/90 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover/pan:opacity-100 transition-opacity duration-200 pointer-events-none z-50">
-                {isPanModeActive ? 'Desativar' : 'Ativar'} modo arrastar
-                <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-black/90"></div>
-              </div>
-            </div>
+            {/* REMOVIDO BOTÃO DE PAN (MÃOZINHA) */}
           </div>
           
           <div className="text-white/60 text-xs font-mono relative group/zoomdisplay inline-block">
