@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useImagePreview } from '../hooks/useImagePreview';
 import { FileInfo } from '../types';
+import logoSvg from '../assets/logo-dev-frostty.svg';
 
 interface CanvasProps {
   currentPreview: string | null;
@@ -324,7 +325,7 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
         {/* Logo */}
         <div className="flex items-center">
           <img 
-            src="/src/assets/logo-dev-frostty.svg" 
+            src={logoSvg} 
             alt="DEV Frostty" 
             className="h-full w-auto opacity-80 drop-shadow-[0_0_20px_rgba(139,92,246,0.4)]"
             style={{ maxHeight: '80px' }}
