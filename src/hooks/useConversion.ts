@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { FileInfo, ConversionType } from '../types';
 import { convertFiles } from '../utils/converter';
 import { invalidateCache } from './useImagePreview';
@@ -10,6 +10,17 @@ export const useConversion = () => {
   const [isConverting, setIsConverting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Cleanup de timeout ao desmontar
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
+  }, []);
 
   const convert = useCallback(async (
     type: ConversionType,
@@ -20,6 +31,12 @@ export const useConversion = () => {
     console.log('[useConversion] Tipo:', type);
     console.log('[useConversion] Arquivos:', files.length);
     console.log('[useConversion] Pasta saida:', outputFolder);
+    
+    // Limpa timeout anterior se existir
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
     
     if (files.length === 0) {
       console.error('[useConversion] Nenhum arquivo selecionado!');
@@ -50,9 +67,10 @@ export const useConversion = () => {
       });
       console.log('[useConversion] Cache invalidado para arquivos convertidos');
       
-      // Limpar mensagem após 3s
-      setTimeout(() => {
+      // Limpar mensagem após 3s (com cleanup)
+      timeoutRef.current = setTimeout(() => {
         setSuccessMessage(null);
+        timeoutRef.current = null;
       }, 3000);
       
     } catch (err) {
