@@ -1,43 +1,58 @@
 # Changelog
 
-Todas as mudancas notaveis deste projeto serao documentadas neste arquivo.
+Todas as mudancas notaveis deste projeto.
 
-## [2.0.0] - 2025-12-29
+## [2.0.0] - 2025-12-30
 
 ### MAJOR REDESIGN - UX Completamente Reformulada
 
 #### Adicionado
-- Lista de arquivos integrada (substitui janela separada)
-- Menu contextual inteligente (botao direito)
-- Validacao automatica de conversoes
-- Lazy loading de thumbnails com Intersection Observer
-- Toast system minimalista
-- Protecao de tamanho de arquivo (5MB max para thumbnails)
-- Cleanup completo de recursos ao fechar app
-- Scripts de loading screen (merge/split)
-- Documentacao tecnica completa (ARCHITECTURE.md)
-
-#### Modificado
-- UX simplificada: tudo em uma janela
-- Conversoes via menu contextual (nao mais botoes fixos)
-- Toasts compactos e em 1 linha
-- Performance otimizada para 1000+ arquivos
-- Glass morphism refinado
-
-#### Removido
-- Suporte a OZB (causava travamento)
-- Suporte a OZD (criptografia nao descoberta)
-- Janela separada de lista de arquivos
-- Todos os arquivos de teste e analise
-- DLLs nao funcionais
-- Scripts de teste obsoletos
+- Lista de arquivos integrada (substituiu janela separada)
+- Menu contextual inteligente com validacao de conversoes
+- Conversao direta OZT para PNG (fluxo simplificado)
+- Toolbar do Canvas (Zoom+, Zoom-, Auto-fit, Pan)
+- Campo de busca com filtro por tipo (dropdown glass morphism)
+- Cache LRU (50 previews, revisitas instantaneas)
+- Sistema de fila com 3 niveis de prioridade
+- Downsampling inteligente (thumbnails 256x256, preview 2048x2048)
+- Splash screen profissional com delay minimo
+- Info da pasta selecionada (caminho + contador)
+- Canvas mostra nome arquivo + dimensoes + tamanho
+- Lazy loading com Intersection Observer otimizado
+- Toast system minimalista (1 linha, sem palavras viuvas)
 
 #### Corrigido
-- App travando com arquivos grandes
-- Thumbnails carregando todos de uma vez
-- Memory leaks de blob URLs
-- Intersection Observers nao sendo limpos
+- Memory leaks em imageLoader.ts e ozj.ts (blob URLs nao revogados)
+- App travando com arquivos grandes (17MB+)
+- Menu contextual ficando atras do canvas (React Portal)
+- Pan/arrastar lento e travado (requestAnimationFrame)
+- Thumbnails carregando todas de uma vez
+- Splash fechando muito rapido
 - Texto quebrando em toasts
+- Suporte a OZB removido (causava travamento)
+
+#### Removido
+- Suporte a OZB e OZD (43 arquivos deletados)
+- Janela separada de lista de arquivos
+- Todos arquivos de teste e analise
+- DLLs nao funcionais
+- Scripts de desenvolvimento obsoletos
+- Sidebar antiga (substituida por FileList)
+
+#### Performance
+- Fila com prioridades (alta/media/baixa)
+- Cache LRU (50 previews)
+- Downsampling automatico
+- Lazy loading otimizado
+- RequestAnimationFrame para pan suave
+- Arquivos ate 20MB sem travar
+
+#### Seguranca
+- Cleanup completo ao fechar app
+- Revogacao de todos blob URLs
+- Desconexao de observers
+- Remocao de event listeners
+- Zero memory leaks
 
 ---
 
@@ -45,57 +60,16 @@ Todas as mudancas notaveis deste projeto serao documentadas neste arquivo.
 
 ### Release Inicial
 
-#### Adicionado
-- Conversao PNG ↔ TGA
-- Conversao PNG → OZT
-- Conversao OZT → TGA
-- Conversao OZJ → JPG
+#### Implementado
+- Conversao PNG para TGA e TGA para PNG
+- Conversao PNG para OZT
+- Conversao OZT para TGA
+- Conversao OZJ para JPG
 - Preview em tempo real
 - Interface glassmorphism
 - Titlebar customizada
-- Sistema de toasts
-
-#### Implementado
-- Decodificador TGA completo
-- Encoder TGA com preservacao alpha
-- Decodificador OZT (TGA + Zlib)
-- Encoder OZT
-- Decodificador OZJ (JPEG + XOR)
-- Sistema de preview multi-formato
+- Sistema de toasts basico
 
 ---
 
-## Tipos de Mudancas
-
-- `Adicionado` - Novas funcionalidades
-- `Modificado` - Mudancas em funcionalidades existentes
-- `Removido` - Funcionalidades removidas
-- `Corrigido` - Bugs corrigidos
-- `Seguranca` - Vulnerabilidades corrigidas
-- `Performance` - Melhorias de performance
-
----
-
-## Roadmap Futuro
-
-### v2.1.0 (Planejado)
-- [ ] Conversao em lote (multiplos arquivos simultaneos)
-- [ ] Drag & drop de arquivos
-- [ ] Historico de conversoes recentes
-- [ ] Favoritos/bookmarks de pastas
-
-### v2.2.0 (Planejado)
-- [ ] Presets de conversao personalizados
-- [ ] Configuracoes de compressao OZT
-- [ ] Batch rename de arquivos
-- [ ] Exportacao de relatorio
-
-### v3.0.0 (Futuro)
-- [ ] Suporte a mais formatos do MU (se descobertos)
-- [ ] Editor de imagem integrado basico
-- [ ] Comparacao lado a lado (antes/depois)
-- [ ] Plugin system
-
----
-
-Mantenha este arquivo atualizado a cada release significativa.
+Mantenha este arquivo atualizado.

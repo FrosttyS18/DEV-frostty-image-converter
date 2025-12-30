@@ -9,156 +9,143 @@ Conversor de imagens profissional para Mu Online Season 18 com interface glassmo
 ## Recursos
 
 - Interface Glassmorphism moderna e minimalista
-- Visualizacao em tempo real com preview de imagens
-- Lista integrada de arquivos com lazy loading de thumbnails
+- Lista integrada de arquivos com lazy loading otimizado
 - Menu contextual inteligente (botao direito)
 - Conversoes validadas automaticamente
+- Visualizacao em tempo real com controles de zoom
+- Cache LRU para performance maxima
+- Otimizacao para arquivos ate 20MB
 - Preservacao total do canal Alpha
-- Performance otimizada para milhares de arquivos
+- Sistema de fila com prioridades
+- Splash screen profissional
 
 ## Conversoes Suportadas
 
+### Fluxo Recomendado (Editar Textura)
+
+```
+OZT -> PNG (1 conversao)
+Edita no Photoshop
+PNG -> OZT (1 conversao)
+
+Total: 2 passos
+```
+
+### Conversoes Disponiveis
+
 | Origem | Destino | Uso |
 |--------|---------|-----|
-| PNG | TGA | Preparar textura para edicao |
+| PNG | TGA | Preparar textura intermediaria |
 | TGA | PNG | Converter para edicao |
 | PNG | OZT | Criar textura para o jogo |
-| OZT | TGA | Extrair textura do jogo |
+| OZT | PNG | Extrair textura do jogo (DIRETO) |
+| OZT | TGA | Extrair textura (formato intermediario) |
 | OZJ | JPG | Extrair imagens JPEG |
 
 ## Formatos do Mu Online
 
-| Formato | Tipo | Descricao |
-|---------|------|-----------|
-| **OZT** | TGA + Zlib | Texturas comprimidas (Interface, Items, etc) |
-| **OZJ** | JPEG + XOR | Imagens JPEG (Loading screens, backgrounds) |
-| **TGA** | Targa | Formato intermediario |
-| **PNG** | PNG | Formato de edicao |
+| Formato | Tipo | Descricao | Tamanho Tipico |
+|---------|------|-----------|----------------|
+| OZT | TGA + Zlib | Texturas comprimidas | 50KB - 5MB |
+| OZJ | JPEG + XOR | Imagens JPEG | 10KB - 20MB |
+| TGA | Targa | Formato intermediario | 100KB - 15MB |
+| PNG | PNG | Formato de edicao | 50KB - 10MB |
 
 ## Instalacao
 
 ### Requisitos
 - Node.js 18+
-- npm ou yarn
+- npm
 
 ### Passos
 
 ```bash
-# 1. Instalar dependencias
 npm install
-
-# 2. Executar em modo desenvolvimento
 npm run dev
-
-# 3. Compilar aplicacao
-npm run build
-npm run electron:build
 ```
 
 ## Como Usar
 
-### Fluxo de Trabalho
+### Fluxo Simplificado
 
-1. **Selecionar Pasta**
+```
+1. Selecionar Pasta
    - Clique em "Selecionar Pasta"
-   - Escolha a pasta do MU Online (ex: Data/Interface)
+   - Lista carrega automaticamente
 
-2. **Selecionar Arquivo**
-   - Clique no arquivo na lista
-   - Preview aparece automaticamente ao lado
+2. Buscar/Filtrar (opcional)
+   - Campo de busca por nome
+   - Dropdown para filtrar por tipo
 
-3. **Converter**
-   - Clique com botao DIREITO no arquivo
-   - Menu contextual mostra conversoes validas
-   - Escolha a conversao desejada
-   - Selecione pasta de destino
+3. Selecionar Arquivo
+   - Clique no arquivo
+   - Preview aparece no canvas
 
-### Exemplos Praticos
-
-#### Editar textura do jogo
-
-```
-1. OZT → TGA - Extrair do formato do jogo
-2. TGA → PNG - Converter para edicao
-3. Editar no Photoshop/GIMP
-4. PNG → TGA - Preparar para converter
-5. (Opcional) TGA → OZT - Converter de volta
+4. Converter
+   - Clique DIREITO no arquivo
+   - Menu mostra apenas conversoes validas
+   - Selecione a conversao
+   - Escolha pasta de destino
 ```
 
-#### Criar nova textura
+## Performance
 
+### Sistema de Cache LRU
+- Mantem 50 previews em cache
+- Revisitas sao instantaneas
+- Remove automaticamente os mais antigos
+- Memoria controlada (max 200MB)
+
+### Fila com Prioridades
 ```
-1. Criar imagem em PNG (1024x1024 recomendado)
-2. Garantir transparencia (canal alpha) se necessario
-3. PNG → OZT - Converter para o jogo
-4. Colocar na pasta Data/Interface do MU
+Prioridade ALTA (< 1MB):
+- 10 simultaneous
+- Carrega primeiro
+
+Prioridade MEDIA (1-5MB):
+- 5 simultaneous
+- Carrega depois
+
+Prioridade BAIXA (> 5MB):
+- 2 simultaneous
+- Ultimo a carregar
 ```
+
+### Otimizacao de Arquivos Grandes
+```
+Thumbnails: Downsampling para 256x256
+Preview: Downsampling para 2048x2048
+Arquivos ate 20MB: Suportados
+```
+
+## Controles do Canvas
+
+### Toolbar
+```
+[Zoom-] [Zoom+] [Auto] [Pan] | Zoom: 100%
+```
+
+### Atalhos
+- Alt + Scroll: Zoom in/out
+- Espaco: Ativar pan (arrastar)
+- Ctrl + 0: Auto-fit
+- Clique e arraste: Mover imagem (quando zoom > 100%)
 
 ## Tecnologias
 
-- **Electron** - Framework desktop multiplataforma
-- **React 18** - Interface de usuario moderna
-- **TypeScript** - Tipagem estatica e seguranca
-- **Vite** - Build tool rapido
-- **Tailwind CSS** - Estilizacao utilitaria
-- **Pako** - Compressao/Descompressao Zlib
-
-## Arquitetura
-
-```
-src/
-├── components/
-│   ├── FileList.tsx        # Lista integrada com menu contextual
-│   ├── Canvas.tsx          # Visualizador de preview
-│   ├── CustomTitlebar.tsx  # Barra de titulo customizada
-│   ├── Toast.tsx           # Notificacoes
-│   └── ...
-├── hooks/
-│   ├── useConversion.ts    # Gerenciamento de conversoes
-│   ├── useFileSelection.ts # Selecao de arquivos
-│   └── useImagePreview.ts  # Preview com lazy loading
-├── utils/
-│   ├── tga.ts              # Encoder/Decoder TGA
-│   ├── ozt.ts              # Encoder/Decoder OZT (TGA+Zlib)
-│   ├── ozj.ts              # Decoder OZJ (JPEG+XOR)
-│   ├── converter.ts        # Orquestrador de conversoes
-│   └── conversionValidator.ts # Validador de conversoes
-├── types/
-│   └── index.ts            # Definicoes TypeScript
-└── App.tsx                 # Componente raiz
-
-electron/
-├── main.js                 # Processo principal Electron
-├── preload.cjs             # Bridge segura IPC
-└── fileListWindow.html     # Janela de lista (legado)
-```
-
-## Performance e Seguranca
-
-### Lazy Loading de Thumbnails
-- Carrega apenas thumbnails visiveis (viewport + 50px)
-- Intersection Observer para deteccao
-- Cleanup automatico de recursos
-- Limite de 5MB por thumbnail
-
-### Gerenciamento de Memoria
-- Revogacao automatica de Blob URLs
-- Cleanup de Intersection Observers
-- Remocao de event listeners ao desmontar
-- Limpeza completa ao fechar aplicacao
-
-### Validacao de Conversoes
-- Menu contextual mostra apenas opcoes validas
-- Validacao por extensao de arquivo
-- Prevencao de erros de usuario
-- Feedback claro via toasts
+- Electron - Framework desktop
+- React 18 - Interface moderna
+- TypeScript - Tipagem estatica
+- Vite - Build rapido
+- Tailwind CSS - Estilizacao
+- Pako - Compressao Zlib
 
 ## Preservacao do Canal Alpha
 
-IMPORTANTE: Este conversor foi desenvolvido com foco especial na preservacao do canal alpha (transparencia).
+IMPORTANTE: Todas as conversoes preservam 100% do canal alpha (transparencia).
 
-Todas as conversoes mantem 100% do canal alpha original, essencial para:
-- Texturas de interface (UI)
+O canal alpha e essencial para:
+- Texturas de interface
 - Items com transparencia
 - Efeitos visuais
 - Elementos HUD
@@ -169,64 +156,47 @@ Todas as conversoes mantem 100% do canal alpha original, essencial para:
 Converte multiplos OZJ para JPG em lote.
 
 ```bash
-node convert-ozj-batch.js "C:\MU\Data\Interface" "output-jpg" "lo_back_s5_im"
+node convert-ozj-batch.js "C:\MU\Data\Interface" "output" "padrao"
 ```
 
 ### merge-loading-screen.js
-Junta pecas de loading screen em imagem completa.
-
-```bash
-node merge-loading-screen.js "C:\MU\Data\Interface" "lo_back_s5_im"
-```
+Junta pecas de loading screen em imagem unica.
 
 ### split-loading-screen.js
 Divide imagem editada de volta em pecas OZJ.
 
-```bash
-node split-loading-screen.js imagem_COMPLETO.png layout.json output
-```
+Veja LOADING-SCREEN-TOOLS.md para detalhes.
 
-Veja `LOADING-SCREEN-TOOLS.md` para detalhes.
+## Seguranca e Cleanup
+
+- Cleanup automatico de recursos ao fechar
+- Revogacao de blob URLs
+- Desconexao de Intersection Observers
+- Remocao de event listeners
+- Zero memory leaks
 
 ## Solucao de Problemas
 
 ### Preview nao carrega
-- Arquivo muito grande (> 5MB) - thumbnails desabilitados
-- Arquivo corrompido - verifique console
+- Arquivo muito grande (aplicando downsampling automatico)
+- Arquivo corrompido
 - Formato nao suportado
 
+### App lento com muitos arquivos
+- Cache LRU ativo (maximo 50 previews)
+- Fila com prioridades ativa
+- Lazy loading otimizado
+
 ### Conversao falha
-- Extensao de arquivo incorreta
+- Extensao incorreta (menu contextual so mostra validas)
 - Arquivo corrompido
-- Falta de permissoes na pasta de destino
-- Espaco em disco insuficiente
-
-### App trava ao carregar pasta
-- Muitos arquivos grandes (> 5MB cada)
-- Protecao implementada: thumbnails pulados automaticamente
-
-## Formato OZT Explicado
-
-O formato OZT do Mu Online:
-1. Arquivo TGA normal (32-bit BGRA ou 24-bit BGR)
-2. Comprimido com Zlib (algoritmo Deflate)
-3. Mantem todas as propriedades do TGA original
-4. Pode ter offset de 4 bytes (formato Mu Online customizado)
-
-## Formato OZJ Explicado
-
-O formato OZJ do Mu Online:
-1. Arquivo JPEG padrao
-2. Pode ter XOR simples (chave 0xFC) - arquivos pequenos
-3. Pode ser JPEG direto - arquivos grandes (loading screens)
-4. Pode ter offset de 24 bytes em alguns casos
+- Falta de permissoes
 
 ## Licenca
 
-MIT License - Uso livre para projetos pessoais e educacionais.
+MIT License
 
 ## Autor
 
-**DEV Frostty** - Season 18 Tools
-
-Desenvolvido para a comunidade Mu Online Brasil.
+DEV Frostty - Season 18 Tools
+Desenvolvido para a comunidade Mu Online
