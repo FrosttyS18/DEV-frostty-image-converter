@@ -125,8 +125,14 @@ export const useImagePreview = (filePath: string | null, isThumbnail: boolean = 
   
   // Ref para manter track do URL atual e fazer cleanup correto
   const currentUrlRef = useRef<string | null>(null);
+  const cancelLoadRef = useRef<(() => void) | null>(null);
 
   const loadPreview = useCallback(async (path: string, forceRefresh: boolean = false) => {
+    // Cancela carregamento anterior se existir
+    if (cancelLoadRef.current) {
+      cancelLoadRef.current();
+      cancelLoadRef.current = null;
+    }
     // Se forçar refresh, invalida cache primeiro
     if (forceRefresh) {
       invalidateCache(path);
@@ -183,7 +189,13 @@ export const useImagePreview = (filePath: string | null, isThumbnail: boolean = 
         const data = await electronService.readFile(path);
         console.log(`[Preview] Arquivo lido: ${data.length} bytes`);
         const mimeType = ext === '.png' ? 'image/png' : 'image/jpeg';
-        const blob = new Blob([data.buffer as ArrayBuffer], { type: mimeType });
+        
+        // Cria uma cópia do ArrayBuffer para evitar problemas de referência
+        const arrayBuffer = data.buffer.slice(
+          data.byteOffset,
+          data.byteOffset + data.byteLength
+        ) as ArrayBuffer;
+        const blob = new Blob([arrayBuffer], { type: mimeType });
         const url = URL.createObjectURL(blob);
         
         // Revoga URL anterior se existir
@@ -195,7 +207,15 @@ export const useImagePreview = (filePath: string | null, isThumbnail: boolean = 
 
         // Carregar dimensões e aplicar downsampling se necessário
         const img = new Image();
+        let isCancelled = false;
+        
         img.onload = () => {
+          // Verifica se ainda é o arquivo correto (não foi cancelado)
+          if (isCancelled || currentUrlRef.current !== url) {
+            URL.revokeObjectURL(url);
+            return;
+          }
+          
           const imgInfo = { width: img.width, height: img.height };
           console.log(`[Preview] ${ext.toUpperCase()} carregado: ${img.width}x${img.height}px${isThumbnail ? ' (thumbnail mode)' : ''}`);
           setImageInfo(imgInfo);
@@ -205,8 +225,13 @@ export const useImagePreview = (filePath: string | null, isThumbnail: boolean = 
           // Aplica downsampling se necessário
           const optimizedUrl = applyDownsampling(img, MAX_PREVIEW_DIMENSION, isThumbnail, fileSize, ext);
           if (optimizedUrl) {
-            URL.revokeObjectURL(url);
+            // Só revoga o blob URL após criar o data URL otimizado
+            // Isso garante que a imagem já foi carregada completamente
             finalUrl = optimizedUrl;
+            // Revoga o blob URL de forma assíncrona para não interferir
+            requestAnimationFrame(() => {
+              URL.revokeObjectURL(url);
+            });
           }
           
           // Adiciona ao cache
@@ -214,10 +239,20 @@ export const useImagePreview = (filePath: string | null, isThumbnail: boolean = 
           currentUrlRef.current = finalUrl;
           setPreviewUrl(finalUrl);
         };
-        img.onerror = () => {
-          setError('Erro ao carregar dimensões da imagem');
+        img.onerror = (err) => {
+          console.error('[Preview] Erro ao carregar imagem:', err);
+          if (!isCancelled) {
+            URL.revokeObjectURL(url);
+            setError('Erro ao carregar dimensões da imagem');
+          }
         };
         img.src = url;
+        
+        // Armazena função de cancelamento
+        cancelLoadRef.current = () => {
+          isCancelled = true;
+          // Não revoga aqui, deixa o onload/onerror fazer isso
+        };
         
       } else if (ext === '.tga' || ext === '.ozt' || ext === '.ozj') {
         // Converter para preview
@@ -305,6 +340,12 @@ export const useImagePreview = (filePath: string | null, isThumbnail: boolean = 
     // Cleanup quando o componente desmonta ou filePath muda
     return () => {
       clearInterval(checkInterval);
+      // Cancela carregamento em andamento
+      if (cancelLoadRef.current) {
+        cancelLoadRef.current();
+        cancelLoadRef.current = null;
+      }
+      // Revoga blob URL se existir
       if (currentUrlRef.current && currentUrlRef.current.startsWith('blob:')) {
         URL.revokeObjectURL(currentUrlRef.current);
         currentUrlRef.current = null;

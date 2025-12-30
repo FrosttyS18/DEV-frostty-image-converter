@@ -10,19 +10,13 @@ export const useFileSelection = () => {
   const [selectedFiles, setSelectedFiles] = useState<FileInfo[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [currentFolderPath, setCurrentFolderPath] = useState<string | null>(null);
 
-  const selectFolder = useCallback(async () => {
+  const loadFolderFiles = useCallback(async (folderPath: string) => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const folderPath = await electronService.selectFolder();
-      
-      if (!folderPath) {
-        setIsLoading(false);
-        return;
-      }
-
       const files = await electronService.readDirectory(folderPath);
       
       // Primeiro filtra arquivos por extensão
@@ -79,9 +73,51 @@ export const useFileSelection = () => {
     }
   }, []);
 
+  const selectFolder = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const folderPath = await electronService.selectFolder();
+      
+      if (!folderPath) {
+        setIsLoading(false);
+        return;
+      }
+
+      setCurrentFolderPath(folderPath);
+      await loadFolderFiles(folderPath);
+    } catch (err) {
+      let errorMessage = 'Não foi possível acessar esta pasta.';
+      
+      if (err instanceof Error) {
+        if (err.message.includes('EACCES') || err.message.includes('permission')) {
+          errorMessage = 'Sem permissão para acessar esta pasta. Escolha outra localização.';
+        } else if (err.message.includes('ENOENT')) {
+          errorMessage = 'Esta pasta não existe ou foi movida.';
+        } else {
+          errorMessage = err.message;
+        }
+      }
+      
+      setError(errorMessage);
+      console.error('[useFileSelection] Error:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const reloadFolder = useCallback(async () => {
+    if (!currentFolderPath) {
+      return;
+    }
+    await loadFolderFiles(currentFolderPath);
+  }, [currentFolderPath, loadFolderFiles]);
+
   const clearFiles = useCallback(() => {
     setSelectedFiles([]);
     setError(null);
+    setCurrentFolderPath(null);
   }, []);
 
   return {
@@ -89,6 +125,8 @@ export const useFileSelection = () => {
     isLoading,
     error,
     selectFolder,
+    reloadFolder,
     clearFiles,
+    currentFolderPath,
   };
 };

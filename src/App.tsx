@@ -16,13 +16,12 @@ function App() {
   const [showInfoToast, setShowInfoToast] = useState(false);
   const [infoMessage, setInfoMessage] = useState<string>('');
   const [selectedFile, setSelectedFile] = useState<FileInfo | null>(null);
-  const [currentFolderPath, setCurrentFolderPath] = useState<string | null>(null);
   
   // Spotlight effect
   useGlowPointer();
   
   // Hook de seleção de arquivos
-  const { selectedFiles, isLoading, error: fileError, selectFolder } = useFileSelection();
+  const { selectedFiles, isLoading, error: fileError, selectFolder, reloadFolder, currentFolderPath } = useFileSelection();
   
   // Hook de conversao
   const { 
@@ -43,21 +42,13 @@ function App() {
     await selectFolder();
   };
   
-  // Atualiza folderPath quando arquivos carregam
+  // Mostra toast quando arquivos carregam
   useEffect(() => {
-    const updateFolderPath = async () => {
-      if (selectedFiles.length > 0 && !isLoading) {
-        const firstFilePath = selectedFiles[0].path;
-        const folderPath = await electronService.getDirname(firstFilePath);
-        setCurrentFolderPath(folderPath);
-        
-        setInfoMessage('Pasta carregada!');
-        setShowInfoToast(true);
-      }
-    };
-    
-    updateFolderPath();
-  }, [selectedFiles.length, isLoading]);
+    if (selectedFiles.length > 0 && !isLoading && currentFolderPath) {
+      setInfoMessage('Pasta carregada!');
+      setShowInfoToast(true);
+    }
+  }, [selectedFiles.length, isLoading, currentFolderPath]);
 
   const handleConvert = async (file: FileInfo, type: ConversionType) => {
     console.log('[App] Iniciando conversao, tipo:', type, 'arquivo:', file.name);
@@ -122,6 +113,7 @@ function App() {
           onSelectFile={handleSelectFile}
           onConvert={handleConvert}
           onSelectFolder={handleSelectFolder}
+          onReloadFolder={reloadFolder}
           isConverting={isConverting}
           folderPath={currentFolderPath}
         />
