@@ -29,8 +29,9 @@ export async function loadImageAsDataUrl(filePath: string): Promise<string> {
             uint8Array[2] !== 0x4E || uint8Array[3] !== 0x47) {
           throw new Error('Arquivo PNG inválido (magic number incorreto)');
         }
-        const pngBlob = new Blob([uint8Array], { type: 'image/png' });
-        return URL.createObjectURL(pngBlob);
+        // Usa data URL ao invés de blob URL (não precisa revogar)
+        const pngBase64 = btoa(String.fromCharCode(...Array.from(uint8Array)));
+        return `data:image/png;base64,${pngBase64}`;
         
       case '.jpg':
       case '.jpeg':
@@ -38,8 +39,9 @@ export async function loadImageAsDataUrl(filePath: string): Promise<string> {
         if (uint8Array.length < 2 || uint8Array[0] !== 0xFF || uint8Array[1] !== 0xD8) {
           throw new Error('Arquivo JPEG inválido (magic number incorreto)');
         }
-        const jpgBlob = new Blob([uint8Array], { type: 'image/jpeg' });
-        return URL.createObjectURL(jpgBlob);
+        // Usa data URL ao invés de blob URL (não precisa revogar)
+        const jpgBase64 = btoa(String.fromCharCode(...Array.from(uint8Array)));
+        return `data:image/jpeg;base64,${jpgBase64}`;
         
       case '.tga':
         if (uint8Array.length < 18) {

@@ -200,8 +200,8 @@ export async function ozjToDataURL(buffer: ArrayBuffer): Promise<string> {
   } catch (error) {
     console.error('[OZJ] Falha ao decodificar com jpeg-js:', error);
     
-    // Fallback: tenta com Blob (método antigo)
-    const blob = new Blob([uint8], { type: 'image/jpeg' });
-    return URL.createObjectURL(blob);
+    // Fallback: usa data URL (sem memory leak)
+    const base64 = btoa(String.fromCharCode(...Array.from(uint8)));
+    return `data:image/jpeg;base64,${base64}`;
   }
 }

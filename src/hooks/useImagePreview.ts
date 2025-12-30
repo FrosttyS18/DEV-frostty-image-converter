@@ -7,8 +7,45 @@ interface ImageInfo {
   height: number;
 }
 
+interface CacheEntry {
+  url: string;
+  info: ImageInfo;
+  timestamp: number;
+}
+
+// Cache LRU global (compartilhado entre todas as instâncias)
+const previewCache = new Map<string, CacheEntry>();
+const MAX_CACHE_SIZE = 50;
+
+function addToCache(path: string, url: string, info: ImageInfo) {
+  // Remove mais antigo se cache estiver cheio
+  if (previewCache.size >= MAX_CACHE_SIZE) {
+    let oldestKey: string | null = null;
+    let oldestTime = Infinity;
+    
+    previewCache.forEach((entry, key) => {
+      if (entry.timestamp < oldestTime) {
+        oldestTime = entry.timestamp;
+        oldestKey = key;
+      }
+    });
+    
+    if (oldestKey) {
+      const removed = previewCache.get(oldestKey);
+      if (removed && removed.url.startsWith('blob:')) {
+        URL.revokeObjectURL(removed.url);
+      }
+      previewCache.delete(oldestKey);
+      console.log('[Cache] Removido item mais antigo:', oldestKey);
+    }
+  }
+  
+  previewCache.set(path, { url, info, timestamp: Date.now() });
+  console.log(`[Cache] Adicionado: ${path} (${previewCache.size}/${MAX_CACHE_SIZE})`);
+}
+
 /**
- * Hook para gerenciar preview de imagens
+ * Hook para gerenciar preview de imagens com cache LRU
  */
 export const useImagePreview = (filePath: string | null) => {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -20,6 +57,16 @@ export const useImagePreview = (filePath: string | null) => {
   const currentUrlRef = useRef<string | null>(null);
 
   const loadPreview = useCallback(async (path: string) => {
+    // Verifica cache primeiro
+    const cached = previewCache.get(path);
+    if (cached) {
+      console.log('[Preview] Carregado do cache:', path);
+      setPreviewUrl(cached.url);
+      setImageInfo(cached.info);
+      setIsLoading(false);
+      return;
+    }
+    
     setIsLoading(true);
     setError(null);
 
@@ -48,7 +95,10 @@ export const useImagePreview = (filePath: string | null) => {
         // Carregar dimensões e aplicar downsampling se necessário
         const img = new Image();
         img.onload = () => {
-          setImageInfo({ width: img.width, height: img.height });
+          const imgInfo = { width: img.width, height: img.height };
+          setImageInfo(imgInfo);
+          
+          let finalUrl = url;
           
           // Se arquivo grande E dimensões grandes, reduz para preview
           if (isLargeFile && (img.width > MAX_PREVIEW_DIMENSION || img.height > MAX_PREVIEW_DIMENSION)) {
@@ -56,8 +106,8 @@ export const useImagePreview = (filePath: string | null) => {
             
             const canvas = document.createElement('canvas');
             const scale = Math.min(MAX_PREVIEW_DIMENSION / img.width, MAX_PREVIEW_DIMENSION / img.height);
-            canvas.width = img.width * scale;
-            canvas.height = img.height * scale;
+            canvas.width = Math.floor(img.width * scale);
+            canvas.height = Math.floor(img.height * scale);
             
             const ctx = canvas.getContext('2d');
             if (ctx) {
@@ -66,16 +116,15 @@ export const useImagePreview = (filePath: string | null) => {
               ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
               
               URL.revokeObjectURL(url);
-              const optimizedUrl = canvas.toDataURL('image/png');
-              currentUrlRef.current = optimizedUrl;
-              setPreviewUrl(optimizedUrl);
+              finalUrl = canvas.toDataURL('image/png');
               console.log(`[Preview] Preview otimizado: ${img.width}x${img.height} → ${canvas.width}x${canvas.height}`);
-            } else {
-              setPreviewUrl(url);
             }
-          } else {
-            setPreviewUrl(url);
           }
+          
+          // Adiciona ao cache
+          addToCache(path, finalUrl, imgInfo);
+          currentUrlRef.current = finalUrl;
+          setPreviewUrl(finalUrl);
         };
         img.onerror = () => {
           setError('Erro ao carregar dimensões da imagem');
@@ -95,7 +144,10 @@ export const useImagePreview = (filePath: string | null) => {
         const img = new Image();
         img.onload = () => {
           console.log('[useImagePreview] Imagem carregada:', img.width, 'x', img.height);
-          setImageInfo({ width: img.width, height: img.height });
+          const imgInfo = { width: img.width, height: img.height };
+          setImageInfo(imgInfo);
+          
+          let finalUrl = dataUrl;
           
           // OTIMIZACAO: Downsampling para arquivos grandes
           if (isLargeFile && (img.width > MAX_PREVIEW_DIMENSION || img.height > MAX_PREVIEW_DIMENSION)) {
@@ -112,18 +164,15 @@ export const useImagePreview = (filePath: string | null) => {
               ctx.imageSmoothingQuality = 'high';
               ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
               
-              const optimizedUrl = canvas.toDataURL('image/png');
-              currentUrlRef.current = optimizedUrl;
-              setPreviewUrl(optimizedUrl);
-              console.log(`[Preview] ${img.width}x${img.height} → ${canvas.width}x${canvas.height} (preview otimizado)`);
-            } else {
-              currentUrlRef.current = dataUrl;
-              setPreviewUrl(dataUrl);
+              finalUrl = canvas.toDataURL('image/png');
+              console.log(`[Preview] ${img.width}x${img.height} → ${canvas.width}x${canvas.height} (otimizado)`);
             }
-          } else {
-            currentUrlRef.current = dataUrl;
-            setPreviewUrl(dataUrl);
           }
+          
+          // Adiciona ao cache
+          addToCache(path, finalUrl, imgInfo);
+          currentUrlRef.current = finalUrl;
+          setPreviewUrl(finalUrl);
         };
         img.onerror = (e) => {
           console.error('[useImagePreview] img.onerror disparou:', e);
