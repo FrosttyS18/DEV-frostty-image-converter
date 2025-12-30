@@ -32,16 +32,17 @@ Aplicação desktop moderna em **Electron + React + TypeScript** para converter 
 | PNG | TGA | ✅ | ✅ |
 | TGA | PNG | ✅ | ✅ |
 | PNG | OZT | ✅ | ✅ |
+| OZT | PNG | ✅ | ✅ |
 | OZT | TGA | ✅ | ✅ |
 | OZJ | JPG | ✅ | N/A |
+| JPG | OZJ | ✅ | N/A |
 
 ### Formatos Reconhecidos
 - `.png` - PNG padrão
-- `.tga` - Targa
-- `.ozt` - Mu Online compressed (TGA+Zlib)
-- `.ozb` - Mu Online compressed (variante)
-- `.ozd` - Mu Online compressed (variante)
-- `.ozj` - Mu Online JPEG compressed
+- `.tga` - Targa (com suporte RLE tipo 10)
+- `.ozt` - Mu Online compressed (TGA+Zlib) com header 4 bytes
+- `.ozj` - Mu Online JPEG compressed (com header 24 bytes)
+- `.jpg` / `.jpeg` - JPEG padrão
 
 ---
 
@@ -140,31 +141,41 @@ npm run dev
 - [x] Preview em tempo real
 - [x] Conversão PNG ↔ TGA
 - [x] Conversão PNG → OZT
+- [x] Conversão OZT → PNG (direto)
 - [x] Conversão OZT → TGA
 - [x] Conversão OZJ → JPG
+- [x] Conversão JPG → OZJ (compatível Pentium Tools)
 - [x] Preservação de canal alpha
-- [x] Conversão em lote
+- [x] Conversão em lote com multi-seleção
 - [x] Interface glassmorphism
+- [x] Sistema de inércia (Kinetic Scrolling) no Canvas
+- [x] Suporte a TGA RLE (Run-Length Encoded)
 
 ### ✅ UI/UX
 - [x] Logo personalizado
 - [x] Sidebar glass morphism
-- [x] Canvas grande para preview
+- [x] Canvas grande para preview com zoom e pan
 - [x] Background animado
 - [x] Lista de arquivos estilizada
-- [x] Botões com hover effects
+- [x] Botões com hover effects e tooltips
 - [x] Cores por tipo de arquivo
 - [x] Informações de dimensão
 - [x] Scrollbar personalizada
+- [x] Multi-seleção com checkboxes
+- [x] Botão de reload para atualizar lista
+- [x] Sistema de inércia (Kinetic Scrolling) tipo Photoshop
+- [x] ResizeObserver para recalcular limites automaticamente
 
 ### ✅ Conversão
-- [x] TGA decoder/encoder próprio
-- [x] OZT decoder/encoder (TGA+Zlib)
-- [x] OZJ decoder/encoder (JPEG+Zlib)
+- [x] TGA decoder/encoder próprio (com suporte RLE tipo 10)
+- [x] OZT decoder/encoder (TGA+Zlib) com header 4 bytes
+- [x] OZJ decoder/encoder (JPEG+Zlib/XOR) com header 24 bytes
 - [x] Preservação total de alpha
 - [x] Suporte a 32-bit RGBA
 - [x] Bottom-up flip correction
 - [x] Error handling
+- [x] Compatibilidade total com Pentium Tools
+- [x] Detecção automática de headers customizados
 
 ---
 

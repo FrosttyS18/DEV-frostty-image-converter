@@ -12,12 +12,16 @@ Conversor de imagens profissional para Mu Online Season 18 com interface glassmo
 - Lista integrada de arquivos com lazy loading otimizado
 - Menu contextual inteligente (botao direito)
 - Conversoes validadas automaticamente
-- Visualizacao em tempo real com controles de zoom
-- Cache LRU para performance maxima
+- Visualizacao em tempo real com controles de zoom e pan
+- **Sistema de inércia (Kinetic Scrolling)** tipo Photoshop
+- **Multi-seleção e conversão em lote** de arquivos
+- Cache LRU para performance maxima (com invalidação automática)
 - Otimizacao para arquivos ate 20MB
 - Preservacao total do canal Alpha
 - Sistema de fila com prioridades
 - Splash screen profissional
+- **Compatibilidade total com Pentium Tools**
+- **Suporte a TGA RLE** (Run-Length Encoded)
 
 ## Conversoes Suportadas
 
@@ -41,15 +45,22 @@ Total: 2 passos
 | OZT | PNG | Extrair textura do jogo (DIRETO) |
 | OZT | TGA | Extrair textura (formato intermediario) |
 | OZJ | JPG | Extrair imagens JPEG |
+| JPG | OZJ | Criar imagens JPEG para o jogo (compatível Pentium Tools) |
 
 ## Formatos do Mu Online
 
 | Formato | Tipo | Descricao | Tamanho Tipico |
 |---------|------|-----------|----------------|
 | OZT | TGA + Zlib | Texturas comprimidas | 50KB - 5MB |
-| OZJ | JPEG + XOR | Imagens JPEG | 10KB - 20MB |
-| TGA | Targa | Formato intermediario | 100KB - 15MB |
+| OZJ | JPEG + XOR/Zlib | Imagens JPEG | 10KB - 20MB |
+| TGA | Targa (RLE suportado) | Formato intermediario | 100KB - 15MB |
 | PNG | PNG | Formato de edicao | 50KB - 10MB |
+| JPG/JPEG | JPEG | Formato de edicao | 10KB - 20MB |
+
+### Compatibilidade
+- **Pentium Tools**: Arquivos gerados são 100% compatíveis
+- **TGA RLE**: Suporte completo para compressão Run-Length Encoded (tipo 10)
+- **Headers customizados**: Detecta e trata headers de 24 bytes (OZJ) e 4 bytes (OZT)
 
 ## Instalacao
 
@@ -126,10 +137,23 @@ Arquivos ate 20MB: Suportados
 ```
 
 ### Atalhos
-- Alt + Scroll: Zoom in/out
-- Espaco: Ativar pan (arrastar)
-- Ctrl + 0: Auto-fit
-- Clique e arraste: Mover imagem (quando zoom > 100%)
+- **Alt + Scroll**: Zoom in/out
+- **Espaço**: Ativar pan temporário (arrastar enquanto segura)
+- **Ctrl + 0**: Auto-fit (resetar zoom)
+- **Clique e arraste**: Mover imagem (quando pan ativo ou zoom > 100%)
+- **Botão Pan**: Ativar/desativar pan permanente
+
+### Sistema de Inércia (Kinetic Scrolling)
+- **Arraste rápido**: Ao soltar, imagem continua movimento com decaimento suave
+- **Atrito**: 0.925 (sensação "pesada" tipo Photoshop)
+- **Hard stop**: Para instantaneamente ao bater nas bordas
+- **Mesa livre**: Imagens pequenas podem ser arrastadas livremente pela tela
+
+### Multi-seleção e Conversão em Lote
+- **Filtro ativo**: Checkboxes aparecem para selecionar múltiplos arquivos
+- **Botão "Converter X"**: Aparece quando arquivos estão selecionados
+- **Menu dropdown**: Mostra apenas conversões válidas para o tipo selecionado
+- **Uma pasta de destino**: Pergunta pasta apenas uma vez para todos os arquivos
 
 ## Tecnologias
 

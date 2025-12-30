@@ -18,7 +18,7 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
   const [zoom, setZoom] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const dragStartRef = useRef({ x: 0, y: 0 }); // MUDANÇA: De useState para useRef (Instantâneo)
   const [isSpacePressed, setIsSpacePressed] = useState(false); // Estado interno para tecla espaço
   const isSpacePressedRef = useRef(false); // Ref para evitar re-renders desnecessários
   const [isPanModeActive, setIsPanModeActive] = useState(false); // Estado do botão (só muda ao clicar)
@@ -84,7 +84,7 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // ESPACO: permite pan temporário (NÃO ativa o botão visualmente)
       // Só funciona quando NÃO está digitando texto
-      if (e.code === 'Space' && !e.repeat) {
+      if (e.code === 'Space') {
         const target = e.target as HTMLElement;
         
         // SÓ ignora se estiver digitando em um input/textarea
@@ -93,14 +93,18 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
           return; // Deixa o espaço funcionar normalmente para digitação
         }
         
-        // Atualiza ref imediatamente (sem re-render)
-        if (!isSpacePressedRef.current) {
-          isSpacePressedRef.current = true;
-          // Só atualiza estado se necessário para o cursor
-          setIsSpacePressed(true);
-        }
-        // Previne scroll da página quando espaço é usado para pan
+        // CORREÇÃO: Sempre previne o scroll, independente se é repeat ou não
         e.preventDefault();
+        
+        // Só atualiza o estado se NÃO for repetição (para performance)
+        if (!e.repeat) {
+          // Atualiza ref imediatamente (sem re-render)
+          if (!isSpacePressedRef.current) {
+            isSpacePressedRef.current = true;
+            // Só atualiza estado se necessário para o cursor
+            setIsSpacePressed(true);
+          }
+        }
       }
       
       // Ctrl+0: reseta zoom para auto-fit
@@ -204,10 +208,9 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
       }
       
       setIsDragging(true);
-      setDragStart({ 
-        x: e.clientX, 
-        y: e.clientY 
-      });
+      
+      // MUDANÇA: Grava posição inicial no Ref (Instantâneo)
+      dragStartRef.current = { x: e.clientX, y: e.clientY };
     }
   };
   
@@ -292,9 +295,10 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
   const updatePositionDuringDrag = useCallback((clientX: number, clientY: number) => {
     if (!isDragging || !containerRef.current || !imageInfo) return;
     
-    // Calcula delta do movimento
-    const deltaX = clientX - dragStart.x;
-    const deltaY = clientY - dragStart.y;
+    // MUDANÇA: Usa o Ref para calcular o Delta
+    // Como o Ref atualiza na hora, o Delta é sempre perfeito
+    const deltaX = clientX - dragStartRef.current.x;
+    const deltaY = clientY - dragStartRef.current.y;
     
     // Calcula nova posição e armazena para calcular velocidade
     let newPosition = { x: 0, y: 0 };
@@ -331,11 +335,9 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
       };
     }
     
-    setDragStart({
-      x: clientX,
-      y: clientY
-    });
-  }, [isDragging, dragStart, imageInfo, applyLimits]);
+    // MUDANÇA: Atualiza o Ref para o próximo frame
+    dragStartRef.current = { x: clientX, y: clientY };
+  }, [isDragging, imageInfo, applyLimits]); // Removido 'dragStart' das dependências
 
   // Loop de física para inércia (Fase 2: O "Flick")
   const physicsLoop = useCallback(() => {
@@ -540,25 +542,27 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
             </div>
             <p className="text-red-400">{error}</p>
           </div>
-        ) : previewUrl ? (
+        ) : previewUrl && imageInfo ? (
           <div 
             className="relative flex items-center justify-center"
             style={{
+              // Forçamos o wrapper a ter o tamanho exato da imagem
+              width: imageInfo.width, 
+              height: imageInfo.height,
+              // Aplicamos o transform
               transform: `translate(${position.x}px, ${position.y}px) scale(${zoom})`,
-              transition: 'none',
               transformOrigin: 'center center',
+              transition: 'none',
               willChange: 'transform',
             }}
           >
             <img
               src={previewUrl}
               alt="Preview"
-              className="rounded-lg shadow-2xl select-none"
+              className="w-full h-full object-contain rounded-lg shadow-2xl select-none"
               draggable={false}
               style={{
                 imageRendering: 'pixelated',
-                maxWidth: 'none',
-                maxHeight: 'none',
               }}
             />
           </div>
