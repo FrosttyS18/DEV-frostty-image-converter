@@ -29,6 +29,11 @@ export function getValidConversions(extension: string): ConversionOption[] {
       enabled: ext === '.png',
     },
     {
+      type: 'OZT_TO_PNG',
+      label: 'OZT → PNG',
+      enabled: ext === '.ozt',
+    },
+    {
       type: 'OZJ_TO_JPG',
       label: 'OZJ → JPG',
       enabled: ext === '.ozj',

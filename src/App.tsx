@@ -17,6 +17,7 @@ function App() {
   const [infoMessage, setInfoMessage] = useState<string>('');
   const [selectedFile, setSelectedFile] = useState<FileInfo | null>(null);
   const [currentConversionType, setCurrentConversionType] = useState<ConversionType | null>(null);
+  const [currentFolderPath, setCurrentFolderPath] = useState<string | null>(null);
   
   // Spotlight effect
   useGlowPointer();
@@ -40,6 +41,13 @@ function App() {
   
   // Funcao para selecionar pasta
   const handleSelectFolder = async () => {
+    const result = await electronService.selectFolder();
+    
+    if (!result || result.canceled) {
+      return;
+    }
+    
+    setCurrentFolderPath(result.filePath);
     await selectFolder();
     
     // Mostra toast quando carregar
@@ -124,11 +132,13 @@ function App() {
           onConvert={handleConvert}
           onSelectFolder={handleSelectFolder}
           isConverting={isConverting}
+          folderPath={currentFolderPath}
         />
         
         {/* Canvas Visualizador */}
         <Canvas 
           currentPreview={selectedFile?.path || null}
+          selectedFile={selectedFile}
         />
       </div>
       

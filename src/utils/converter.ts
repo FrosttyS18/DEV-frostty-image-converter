@@ -61,11 +61,25 @@ async function convertFile(
       await pngToOzt(filePath, outputFolder);
       break;
       
+    case 'OZT_TO_PNG':
+      if (ext !== '.ozt') {
+        throw new Error(`Arquivo "${filename}" não é OZT. Conversão OZT→PNG requer arquivos .ozt`);
+      }
+      await oztToPng(filePath, outputFolder);
+      break;
+      
     case 'OZJ_TO_JPG':
       if (ext !== '.ozj') {
         throw new Error(`Arquivo "${filename}" não é OZJ. Conversão OZJ→JPG requer arquivos .ozj`);
       }
       await ozjToJpg(filePath, outputFolder);
+      break;
+      
+    case 'OZT_TO_PNG':
+      if (ext !== '.ozt') {
+        throw new Error(`Arquivo "${filename}" não é OZT. Conversão OZT→PNG requer arquivos .ozt`);
+      }
+      await oztToPng(filePath, outputFolder);
       break;
       
     case 'OZT_TO_TGA':
@@ -335,6 +349,81 @@ async function pngToOzt(pngPath: string, outputFolder?: string): Promise<void> {
     };
     
     img.src = url;
+  });
+}
+
+// OZT -> PNG (DIRETO - fluxo simplificado)
+async function oztToPng(oztPath: string, outputFolder?: string): Promise<void> {
+  const uint8Array = await electronService.readFile(oztPath);
+  
+  // Validação básica
+  if (!uint8Array || uint8Array.length < 18) {
+    throw new Error('Arquivo OZT inválido (muito pequeno)');
+  }
+  
+  const arrayBuffer = uint8Array.buffer.slice(
+    uint8Array.byteOffset,
+    uint8Array.byteOffset + uint8Array.byteLength
+  );
+  
+  const imageData = decodeOZT(arrayBuffer);
+  
+  // Valida resultado
+  if (!imageData || imageData.width <= 0 || imageData.height <= 0) {
+    throw new Error('Falha ao decodificar OZT: dimensões inválidas');
+  }
+  
+  return new Promise((resolve, reject) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = imageData.width;
+    canvas.height = imageData.height;
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      reject(new Error('Contexto 2D não disponível'));
+      return;
+    }
+    
+    const imgData = ctx.createImageData(imageData.width, imageData.height);
+    imgData.data.set(imageData.data);
+    ctx.putImageData(imgData, 0, 0);
+    
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        reject(new Error('Falha ao criar blob PNG'));
+        return;
+      }
+      
+      blob.arrayBuffer().then(async buffer => {
+        const filename = (await electronService.getBasename(oztPath)).replace(/\.ozt$/i, '.png');
+        const outputPath = outputFolder 
+          ? await electronService.joinPath(outputFolder, filename)
+          : oztPath.replace(/\.ozt$/i, '.png');
+        
+        console.log('[OZT→PNG] ========================================');
+        console.log('[OZT→PNG] Arquivo de origem:', oztPath);
+        console.log('[OZT→PNG] Pasta de destino:', outputFolder || 'mesma pasta do arquivo');
+        console.log('[OZT→PNG] Nome do arquivo:', filename);
+        console.log('[OZT→PNG] Caminho completo:', outputPath);
+        console.log('[OZT→PNG] Dimensões:', imageData.width, 'x', imageData.height);
+        console.log('[OZT→PNG] ========================================');
+        
+        await electronService.writeFile(outputPath, new Uint8Array(buffer));
+        
+        // Verifica se o arquivo foi criado
+        try {
+          const stats = await electronService.getFileStats(outputPath);
+          console.log('[OZT→PNG] Arquivo criado com sucesso!');
+          console.log('[OZT→PNG] Tamanho verificado:', stats.size, 'bytes');
+          console.log('[OZT→PNG] Localizacao:', outputPath);
+        } catch (err) {
+          console.error('[OZT→PNG] ERRO: Arquivo nao foi encontrado apos salvar!');
+          throw new Error(`Arquivo PNG não foi criado: ${outputPath}`);
+        }
+        
+        resolve();
+      }).catch(reject);
+    }, 'image/png');
   });
 }
 

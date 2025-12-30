@@ -1,12 +1,20 @@
 import { useState, useRef, useEffect } from 'react';
 import { useImagePreview } from '../hooks/useImagePreview';
+import { FileInfo } from '../types';
 
 interface CanvasProps {
   currentPreview: string | null;
+  selectedFile?: FileInfo | null;
 }
 
-const Canvas = ({ currentPreview }: CanvasProps) => {
+const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
   const { previewUrl, imageInfo, isLoading, error } = useImagePreview(currentPreview);
+  
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
   const [zoom, setZoom] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -115,20 +123,20 @@ const Canvas = ({ currentPreview }: CanvasProps) => {
   
   const handleMouseMove = (e: React.MouseEvent) => {
     if (isDragging) {
-      // Calcula quanto o mouse moveu desde o início do drag
-      const deltaX = e.clientX - dragStart.x;
-      const deltaY = e.clientY - dragStart.y;
-      
-      // Atualiza a posição (movimento relativo)
-      setPosition(prev => ({
-        x: prev.x + deltaX,
-        y: prev.y + deltaY
-      }));
-      
-      // Atualiza o ponto de início para o próximo frame
-      setDragStart({
-        x: e.clientX,
-        y: e.clientY
+      // Usa requestAnimationFrame para suavidade
+      requestAnimationFrame(() => {
+        const deltaX = e.clientX - dragStart.x;
+        const deltaY = e.clientY - dragStart.y;
+        
+        setPosition(prev => ({
+          x: prev.x + deltaX,
+          y: prev.y + deltaY
+        }));
+        
+        setDragStart({
+          x: e.clientX,
+          y: e.clientY
+        });
       });
     }
   };
@@ -139,14 +147,26 @@ const Canvas = ({ currentPreview }: CanvasProps) => {
 
   return (
     <div className="flex-1 min-w-0 flex flex-col gap-4 animate-fade-in">
-      {/* Header */}
+      {/* Header com info do arquivo */}
       <div className="glass-strong rounded-2xl px-6 py-4">
-        <h2 className="text-white text-xl font-semibold">Canvas Visualizador</h2>
-        {imageInfo && (
-          <p className="text-purple-300 text-sm mt-1">
-            {imageInfo.width} × {imageInfo.height} pixels
-          </p>
-        )}
+        <h2 className="text-white text-xl font-semibold truncate" title={selectedFile?.name}>
+          {selectedFile?.name || 'Nenhum arquivo selecionado'}
+        </h2>
+        <div className="flex items-center gap-3 mt-1 text-sm">
+          {imageInfo && (
+            <span className="text-purple-300">
+              {imageInfo.width} × {imageInfo.height} pixels
+            </span>
+          )}
+          {selectedFile && (
+            <>
+              {imageInfo && <span className="text-white/30">•</span>}
+              <span className="text-purple-300/80">
+                {formatFileSize(selectedFile.size)}
+              </span>
+            </>
+          )}
+        </div>
       </div>
       
       {/* Canvas área */}
@@ -182,8 +202,9 @@ const Canvas = ({ currentPreview }: CanvasProps) => {
             className="relative flex items-center justify-center"
             style={{
               transform: `translate(${position.x}px, ${position.y}px) scale(${zoom})`,
-              transition: isDragging ? 'none' : 'transform 0.1s ease-out',
+              transition: 'none',
               transformOrigin: 'center center',
+              willChange: 'transform',
             }}
           >
             <img
@@ -225,22 +246,55 @@ const Canvas = ({ currentPreview }: CanvasProps) => {
         )}
       </div>
       
-      {/* Info footer */}
-      {currentPreview && (
-        <div className="glass rounded-2xl px-6 py-3 flex items-center justify-between">
-          <p className="text-purple-300 text-sm">
-            Arquivo selecionado para preview
-          </p>
-          {imageInfo && (
-            <div className="flex items-center gap-3">
-              <span className="text-purple-400 text-xs">
-                Zoom: {Math.round(zoom * 100)}%
-              </span>
-              <span className="text-purple-500/50 text-xs">
-                Alt+Scroll = zoom | Espaco = mover | Ctrl+0 = auto-fit
-              </span>
-            </div>
-          )}
+      {/* Toolbar (estilo Photoshop) */}
+      {currentPreview && imageInfo && (
+        <div className="glass rounded-2xl px-4 py-2 flex items-center justify-between gap-4">
+          {/* Controles de zoom */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setZoom(Math.max(0.1, zoom - 0.1))}
+              className="glass-strong rounded-lg p-2 hover:bg-white/10 transition-all border border-white/10"
+              title="Zoom Out"
+            >
+              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7" />
+              </svg>
+            </button>
+            
+            <button
+              onClick={() => setZoom(Math.min(5, zoom + 0.1))}
+              className="glass-strong rounded-lg p-2 hover:bg-white/10 transition-all border border-white/10"
+              title="Zoom In"
+            >
+              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+              </svg>
+            </button>
+            
+            <button
+              onClick={() => { setZoom(autoFitZoomRef.current); setPosition({ x: 0, y: 0 }); }}
+              className="glass-strong rounded-lg px-3 py-2 hover:bg-white/10 transition-all border border-white/10 text-xs text-white font-medium"
+              title="Auto-fit"
+            >
+              Auto
+            </button>
+            
+            <button
+              onClick={() => setIsSpacePressed(!isSpacePressed)}
+              className={`glass-strong rounded-lg p-2 hover:bg-white/10 transition-all border border-white/10
+                         ${isSpacePressed ? 'bg-purple-500/20 border-purple-400/30' : ''}`}
+              title="Pan/Mover"
+            >
+              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11" />
+              </svg>
+            </button>
+          </div>
+          
+          {/* Indicador de zoom */}
+          <div className="text-white/60 text-xs font-mono">
+            Zoom: {Math.round(zoom * 100)}%
+          </div>
         </div>
       )}
     </div>

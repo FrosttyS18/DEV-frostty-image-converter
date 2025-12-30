@@ -25,6 +25,12 @@ export const useImagePreview = (filePath: string | null) => {
 
     try {
       const ext = (await electronService.getExtension(path)).toLowerCase();
+      const stats = await electronService.getFileStats(path);
+      const fileSize = stats.size;
+      
+      // OTIMIZACAO: Arquivos grandes (> 5MB) podem precisar downsampling
+      const isLargeFile = fileSize > 5 * 1024 * 1024;
+      const MAX_PREVIEW_DIMENSION = 2048;
 
       if (ext === '.png') {
         // PNG direto
@@ -38,12 +44,38 @@ export const useImagePreview = (filePath: string | null) => {
         }
         
         currentUrlRef.current = url;
-        setPreviewUrl(url);
 
-        // Carregar dimensões
+        // Carregar dimensões e aplicar downsampling se necessário
         const img = new Image();
         img.onload = () => {
           setImageInfo({ width: img.width, height: img.height });
+          
+          // Se arquivo grande E dimensões grandes, reduz para preview
+          if (isLargeFile && (img.width > MAX_PREVIEW_DIMENSION || img.height > MAX_PREVIEW_DIMENSION)) {
+            console.log(`[Preview] Arquivo grande detectado (${(fileSize / 1024 / 1024).toFixed(1)}MB), aplicando downsampling...`);
+            
+            const canvas = document.createElement('canvas');
+            const scale = Math.min(MAX_PREVIEW_DIMENSION / img.width, MAX_PREVIEW_DIMENSION / img.height);
+            canvas.width = img.width * scale;
+            canvas.height = img.height * scale;
+            
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.imageSmoothingEnabled = true;
+              ctx.imageSmoothingQuality = 'high';
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              
+              URL.revokeObjectURL(url);
+              const optimizedUrl = canvas.toDataURL('image/png');
+              currentUrlRef.current = optimizedUrl;
+              setPreviewUrl(optimizedUrl);
+              console.log(`[Preview] Preview otimizado: ${img.width}x${img.height} → ${canvas.width}x${canvas.height}`);
+            } else {
+              setPreviewUrl(url);
+            }
+          } else {
+            setPreviewUrl(url);
+          }
         };
         img.onerror = () => {
           setError('Erro ao carregar dimensões da imagem');
@@ -58,15 +90,40 @@ export const useImagePreview = (filePath: string | null) => {
         if (currentUrlRef.current && currentUrlRef.current.startsWith('blob:')) {
           URL.revokeObjectURL(currentUrlRef.current);
         }
-        
-        currentUrlRef.current = dataUrl;
-        setPreviewUrl(dataUrl);
 
-        // Carregar dimensões
+        // Carregar dimensões e aplicar downsampling para arquivos grandes
         const img = new Image();
         img.onload = () => {
           console.log('[useImagePreview] Imagem carregada:', img.width, 'x', img.height);
           setImageInfo({ width: img.width, height: img.height });
+          
+          // OTIMIZACAO: Downsampling para arquivos grandes
+          if (isLargeFile && (img.width > MAX_PREVIEW_DIMENSION || img.height > MAX_PREVIEW_DIMENSION)) {
+            console.log(`[Preview] Otimizando arquivo grande ${ext} (${(fileSize / 1024 / 1024).toFixed(1)}MB)...`);
+            
+            const canvas = document.createElement('canvas');
+            const scale = Math.min(MAX_PREVIEW_DIMENSION / img.width, MAX_PREVIEW_DIMENSION / img.height);
+            canvas.width = Math.floor(img.width * scale);
+            canvas.height = Math.floor(img.height * scale);
+            
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.imageSmoothingEnabled = true;
+              ctx.imageSmoothingQuality = 'high';
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              
+              const optimizedUrl = canvas.toDataURL('image/png');
+              currentUrlRef.current = optimizedUrl;
+              setPreviewUrl(optimizedUrl);
+              console.log(`[Preview] ${img.width}x${img.height} → ${canvas.width}x${canvas.height} (preview otimizado)`);
+            } else {
+              currentUrlRef.current = dataUrl;
+              setPreviewUrl(dataUrl);
+            }
+          } else {
+            currentUrlRef.current = dataUrl;
+            setPreviewUrl(dataUrl);
+          }
         };
         img.onerror = (e) => {
           console.error('[useImagePreview] img.onerror disparou:', e);
