@@ -190,6 +190,7 @@ export function decodeTGA(buffer: ArrayBuffer): ImageData {
 
 export function encodeTGA(imageData: ImageData): ArrayBuffer {
   const { width, height, data, hasAlpha } = imageData;
+  console.log('[TGA] Codificando TGA:', width, 'x', height, 'pixels, alpha:', hasAlpha);
   const bitsPerPixel = hasAlpha ? 32 : 24;
   const bytesPerPixel = bitsPerPixel / 8;
   
@@ -212,6 +213,7 @@ export function encodeTGA(imageData: ImageData): ArrayBuffer {
   view.setUint16(offset, 0, true); offset += 2; // Y origin
   view.setUint16(offset, width, true); offset += 2; // Width
   view.setUint16(offset, height, true); offset += 2; // Height
+  console.log('[TGA] Header TGA escrito - Width:', width, 'Height:', height);
   view.setUint8(offset++, bitsPerPixel); // Bits per pixel
   view.setUint8(offset++, hasAlpha ? 8 : 0); // Image descriptor (alpha channel depth)
 

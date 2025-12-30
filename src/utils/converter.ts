@@ -315,6 +315,10 @@ async function pngToOzt(pngPath: string, outputFolder?: string): Promise<void> {
           hasAlpha: true,
         };
         
+        console.log('[PNG→OZT] Dimensoes da imagem:', data.width, 'x', data.height, 'pixels');
+        console.log('[PNG→OZT] Total de pixels:', data.width * data.height);
+        console.log('[PNG→OZT] Tamanho dos dados:', data.data.length, 'bytes');
+        
         const oztBuffer = encodeOZT(data);
         const filename = (await electronService.getBasename(pngPath)).replace(/\.png$/i, '.ozt');
         const outputPath = outputFolder 

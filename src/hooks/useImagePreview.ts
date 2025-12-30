@@ -109,7 +109,9 @@ export const useImagePreview = (filePath: string | null, isThumbnail: boolean = 
 
       if (ext === '.png' || ext === '.jpg' || ext === '.jpeg') {
         // PNG/JPEG direto
+        console.log(`[Preview] Carregando ${ext.toUpperCase()}${isThumbnail ? ' (thumbnail)' : ''}:`, path);
         const data = await electronService.readFile(path);
+        console.log(`[Preview] Arquivo lido: ${data.length} bytes`);
         const mimeType = ext === '.png' ? 'image/png' : 'image/jpeg';
         const blob = new Blob([data.buffer as ArrayBuffer], { type: mimeType });
         const url = URL.createObjectURL(blob);
@@ -125,6 +127,7 @@ export const useImagePreview = (filePath: string | null, isThumbnail: boolean = 
         const img = new Image();
         img.onload = () => {
           const imgInfo = { width: img.width, height: img.height };
+          console.log(`[Preview] ${ext.toUpperCase()} carregado: ${img.width}x${img.height}px${isThumbnail ? ' (thumbnail mode)' : ''}`);
           setImageInfo(imgInfo);
           
           let finalUrl = url;

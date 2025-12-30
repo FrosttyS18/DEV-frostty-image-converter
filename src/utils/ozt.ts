@@ -56,16 +56,32 @@ export function decodeOZT(buffer: ArrayBuffer): ImageData {
   }
 }
 
-export function encodeOZT(imageData: ImageData): ArrayBuffer {
+export function encodeOZT(imageData: ImageData, useZlib: boolean = false): ArrayBuffer {
   try {
     // Codificar como TGA
     const tgaBuffer = encodeTGA(imageData);
-    
-    // Comprimir com zlib
     const tgaData = new Uint8Array(tgaBuffer);
-    const compressed = pako.deflate(tgaData);
     
-    return compressed.buffer;
+    if (useZlib) {
+      // Comprimir com zlib (formato comprimido)
+      console.log('[OZT] Codificando com zlib...');
+      const compressed = pako.deflate(tgaData);
+      return compressed.buffer;
+    } else {
+      // TGA direto com header de 4 bytes - formato usado pelo Pentium Tools (compatível com o jogo)
+      // O Pentium Tools adiciona um header de 4 bytes antes do TGA
+      console.log('[OZT] Codificando como TGA direto com header de 4 bytes (formato Pentium Tools)...');
+      
+      // Header de 4 bytes: 00 00 02 00 (formato usado pelo Pentium Tools)
+      const header = new Uint8Array([0x00, 0x00, 0x02, 0x00]);
+      
+      // Cria novo buffer: header (4 bytes) + TGA completo
+      const result = new Uint8Array(4 + tgaData.length);
+      result.set(header, 0);        // Header (4 bytes)
+      result.set(tgaData, 4);        // TGA completo após o header
+      
+      return result.buffer;
+    }
   } catch (error) {
     console.error('Erro ao codificar OZT:', error);
     throw new Error(`Falha ao codificar OZT: ${error}`);
