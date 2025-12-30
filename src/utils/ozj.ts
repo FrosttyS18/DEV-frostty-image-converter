@@ -41,7 +41,20 @@ export function decodeOZJ(buffer: ArrayBuffer): ArrayBuffer {
     
     // PRIORIDADE 2: JPEG direto (pode ter múltiplas imagens)
     if (isJPEG) {
-      console.log('[OZJ] JPEG detectado - verificando se há múltiplas imagens...');
+      console.log('[OZJ] JPEG detectado - verificando se há header de 24 bytes (formato Pentium Tools)...');
+      
+      // Detecta se há header de 24 bytes (formato Pentium Tools)
+      // O header é uma cópia dos primeiros 24 bytes do JPEG
+      if (data.length >= 48) {
+        const headerMatches = data.slice(0, 24).every((byte, i) => byte === data[i + 24]);
+        if (headerMatches) {
+          console.log('[OZJ] Header de 24 bytes detectado (formato Pentium Tools) - pulando header...');
+          // Retorna apenas o JPEG real (sem o header duplicado)
+          return buffer.slice(24);
+        }
+      }
+      
+      console.log('[OZJ] Verificando se há múltiplas imagens...');
       
       // Procura todos os marcadores SOI (Start Of Image: FF D8)
       const soiOffsets: number[] = [];

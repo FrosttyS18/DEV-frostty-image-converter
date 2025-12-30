@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { FileInfo, ConversionType } from '../types';
 import { convertFiles } from '../utils/converter';
+import { invalidateCache } from './useImagePreview';
 
 /**
  * Hook para gerenciar conversões de arquivos
@@ -41,6 +42,13 @@ export const useConversion = () => {
 
       console.log('[useConversion] Conversao concluida com sucesso!');
       setSuccessMessage(files.length === 1 ? 'Arquivo convertido!' : `${files.length} arquivos convertidos!`);
+      
+      // Invalida cache de todos os arquivos convertidos (entrada e saída)
+      // Isso garante que thumbnails sejam atualizados após conversão
+      files.forEach(file => {
+        invalidateCache(file.path);
+      });
+      console.log('[useConversion] Cache invalidado para arquivos convertidos');
       
       // Limpar mensagem após 3s
       setTimeout(() => {

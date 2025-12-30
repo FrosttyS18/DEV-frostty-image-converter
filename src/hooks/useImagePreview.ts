@@ -46,6 +46,73 @@ function addToCache(path: string, url: string, info: ImageInfo, fileModifiedTime
 }
 
 /**
+ * Invalida o cache de um arquivo específico ou de todos os arquivos
+ * @param filePath - Caminho do arquivo a invalidar. Se não fornecido, invalida todo o cache.
+ */
+export function invalidateCache(filePath?: string) {
+  if (filePath) {
+    // Invalida apenas o arquivo específico
+    const cached = previewCache.get(filePath);
+    if (cached) {
+      if (cached.url.startsWith('blob:')) {
+        URL.revokeObjectURL(cached.url);
+      }
+      previewCache.delete(filePath);
+      console.log('[Cache] Invalidado:', filePath);
+    }
+  } else {
+    // Invalida todo o cache
+    previewCache.forEach((entry) => {
+      if (entry.url.startsWith('blob:')) {
+        URL.revokeObjectURL(entry.url);
+      }
+    });
+    previewCache.clear();
+    console.log('[Cache] Todo o cache foi invalidado');
+  }
+}
+
+/**
+ * Aplica downsampling na imagem se necessário
+ */
+function applyDownsampling(
+  img: HTMLImageElement,
+  maxDimension: number,
+  isThumbnail: boolean,
+  fileSize: number,
+  ext: string
+): string {
+  const shouldDownsample = isThumbnail 
+    ? (img.width > maxDimension || img.height > maxDimension)
+    : (fileSize > 5 * 1024 * 1024 && (img.width > maxDimension || img.height > maxDimension));
+  
+  if (!shouldDownsample) {
+    return '';
+  }
+  
+  const mode = isThumbnail ? 'Thumbnail' : 'Preview';
+  console.log(`[${mode}] Otimizando ${ext} (${(fileSize / 1024 / 1024).toFixed(1)}MB)...`);
+  
+  const canvas = document.createElement('canvas');
+  const scale = Math.min(maxDimension / img.width, maxDimension / img.height);
+  canvas.width = Math.floor(img.width * scale);
+  canvas.height = Math.floor(img.height * scale);
+  
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    
+    const optimizedUrl = canvas.toDataURL('image/png');
+    console.log(`[Preview] ${img.width}x${img.height} → ${canvas.width}x${canvas.height} (otimizado)`);
+    return optimizedUrl;
+  }
+  
+  return '';
+}
+
+/**
  * Hook para gerenciar preview de imagens com cache LRU
  * @param filePath - Caminho do arquivo
  * @param isThumbnail - Se true, aplica downsampling agressivo (max 256x256)
@@ -59,10 +126,15 @@ export const useImagePreview = (filePath: string | null, isThumbnail: boolean = 
   // Ref para manter track do URL atual e fazer cleanup correto
   const currentUrlRef = useRef<string | null>(null);
 
-  const loadPreview = useCallback(async (path: string) => {
+  const loadPreview = useCallback(async (path: string, forceRefresh: boolean = false) => {
+    // Se forçar refresh, invalida cache primeiro
+    if (forceRefresh) {
+      invalidateCache(path);
+    }
+    
     // Verifica cache primeiro (com validação de timestamp do arquivo)
     const cached = previewCache.get(path);
-    if (cached) {
+    if (cached && !forceRefresh) {
       try {
         // Verifica se arquivo foi modificado desde que foi cacheado
         const stats = await electronService.getFileStats(path);
@@ -102,8 +174,6 @@ export const useImagePreview = (filePath: string | null, isThumbnail: boolean = 
       const fileSize = stats.size;
       const fileModifiedTime = stats.mtimeMs;
       
-      // OTIMIZACAO: Arquivos grandes (> 5MB) podem precisar downsampling
-      const isLargeFile = fileSize > 5 * 1024 * 1024;
       // Thumbnails usam dimensão muito menor
       const MAX_PREVIEW_DIMENSION = isThumbnail ? 256 : 2048;
 
@@ -132,31 +202,11 @@ export const useImagePreview = (filePath: string | null, isThumbnail: boolean = 
           
           let finalUrl = url;
           
-          // Para thumbnails, SEMPRE aplica downsampling se maior que 256
-          // Para preview, só se arquivo grande (> 5MB) E maior que 2048
-          const shouldDownsample = isThumbnail 
-            ? (img.width > MAX_PREVIEW_DIMENSION || img.height > MAX_PREVIEW_DIMENSION)
-            : (isLargeFile && (img.width > MAX_PREVIEW_DIMENSION || img.height > MAX_PREVIEW_DIMENSION));
-          
-          if (shouldDownsample) {
-            const mode = isThumbnail ? 'thumbnail' : 'preview';
-            console.log(`[${mode}] Aplicando downsampling (${(fileSize / 1024 / 1024).toFixed(1)}MB)...`);
-            
-            const canvas = document.createElement('canvas');
-            const scale = Math.min(MAX_PREVIEW_DIMENSION / img.width, MAX_PREVIEW_DIMENSION / img.height);
-            canvas.width = Math.floor(img.width * scale);
-            canvas.height = Math.floor(img.height * scale);
-            
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-              ctx.imageSmoothingEnabled = true;
-              ctx.imageSmoothingQuality = 'high';
-              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-              
-              URL.revokeObjectURL(url);
-              finalUrl = canvas.toDataURL('image/png');
-              console.log(`[Preview] Preview otimizado: ${img.width}x${img.height} → ${canvas.width}x${canvas.height}`);
-            }
+          // Aplica downsampling se necessário
+          const optimizedUrl = applyDownsampling(img, MAX_PREVIEW_DIMENSION, isThumbnail, fileSize, ext);
+          if (optimizedUrl) {
+            URL.revokeObjectURL(url);
+            finalUrl = optimizedUrl;
           }
           
           // Adiciona ao cache
@@ -187,29 +237,10 @@ export const useImagePreview = (filePath: string | null, isThumbnail: boolean = 
           
           let finalUrl = dataUrl;
           
-          // OTIMIZACAO: Downsampling (mais agressivo para thumbnails)
-          const shouldDownsample = isThumbnail 
-            ? (img.width > MAX_PREVIEW_DIMENSION || img.height > MAX_PREVIEW_DIMENSION)
-            : (isLargeFile && (img.width > MAX_PREVIEW_DIMENSION || img.height > MAX_PREVIEW_DIMENSION));
-          
-          if (shouldDownsample) {
-            const mode = isThumbnail ? 'Thumbnail' : 'Preview';
-            console.log(`[${mode}] Otimizando ${ext} (${(fileSize / 1024 / 1024).toFixed(1)}MB)...`);
-            
-            const canvas = document.createElement('canvas');
-            const scale = Math.min(MAX_PREVIEW_DIMENSION / img.width, MAX_PREVIEW_DIMENSION / img.height);
-            canvas.width = Math.floor(img.width * scale);
-            canvas.height = Math.floor(img.height * scale);
-            
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-              ctx.imageSmoothingEnabled = true;
-              ctx.imageSmoothingQuality = 'high';
-              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-              
-              finalUrl = canvas.toDataURL('image/png');
-              console.log(`[Preview] ${img.width}x${img.height} → ${canvas.width}x${canvas.height} (otimizado)`);
-            }
+          // Aplica downsampling se necessário
+          const optimizedUrl = applyDownsampling(img, MAX_PREVIEW_DIMENSION, isThumbnail, fileSize, ext);
+          if (optimizedUrl) {
+            finalUrl = optimizedUrl;
           }
           
           // Adiciona ao cache
@@ -235,7 +266,7 @@ export const useImagePreview = (filePath: string | null, isThumbnail: boolean = 
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [isThumbnail]);
 
   useEffect(() => {
     if (!filePath) {
@@ -252,8 +283,28 @@ export const useImagePreview = (filePath: string | null, isThumbnail: boolean = 
 
     loadPreview(filePath);
 
+    // Verifica periodicamente se o arquivo foi modificado (polling a cada 2 segundos)
+    const checkInterval = setInterval(async () => {
+      try {
+        const cached = previewCache.get(filePath);
+        if (cached) {
+          const stats = await electronService.getFileStats(filePath);
+          const fileModifiedTime = stats.mtimeMs;
+          
+          // Se arquivo foi modificado, força refresh
+          if (cached.fileModifiedTime !== fileModifiedTime) {
+            console.log('[Preview] Arquivo modificado detectado, forçando refresh:', filePath);
+            loadPreview(filePath, true);
+          }
+        }
+      } catch (err) {
+        // Ignora erros de polling
+      }
+    }, 2000); // Verifica a cada 2 segundos
+
     // Cleanup quando o componente desmonta ou filePath muda
     return () => {
+      clearInterval(checkInterval);
       if (currentUrlRef.current && currentUrlRef.current.startsWith('blob:')) {
         URL.revokeObjectURL(currentUrlRef.current);
         currentUrlRef.current = null;
