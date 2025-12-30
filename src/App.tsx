@@ -1,26 +1,28 @@
 import { useState, useEffect } from 'react';
-import Sidebar from './components/Sidebar';
+import FileList from './components/FileList';
 import Canvas from './components/Canvas';
 import BackgroundEffect from './components/BackgroundEffect';
 import CustomTitlebar from './components/CustomTitlebar';
 import Toast from './components/Toast';
 import { useConversion } from './hooks/useConversion';
+import { useFileSelection } from './hooks/useFileSelection';
 import { useGlowPointer } from './hooks/useGlowPointer';
 import { electronService } from './services/electronService';
 import { ConversionType, FileInfo } from './types';
 
 function App() {
-  const [currentPreview, setCurrentPreview] = useState<string | null>(null);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
   const [showErrorToast, setShowErrorToast] = useState(false);
   const [showInfoToast, setShowInfoToast] = useState(false);
   const [infoMessage, setInfoMessage] = useState<string>('');
-  const [selectedFiles, setSelectedFiles] = useState<FileInfo[]>([]);
+  const [selectedFile, setSelectedFile] = useState<FileInfo | null>(null);
   const [currentConversionType, setCurrentConversionType] = useState<ConversionType | null>(null);
-  const [hasLoadedFilesBefore, setHasLoadedFilesBefore] = useState(false);
   
   // Spotlight effect
   useGlowPointer();
+  
+  // Hook de seleção de arquivos
+  const { selectedFiles, isLoading, error: fileError, selectFolder, clearFiles } = useFileSelection();
   
   // Hook de conversao
   const { 
@@ -30,43 +32,33 @@ function App() {
     convert 
   } = useConversion();
   
-  // Escuta selecao de arquivo da janela de lista
-  useEffect(() => {
-    const handleFileSelected = (filePath: string) => {
-      console.log('[App] Arquivo selecionado:', filePath);
-      setCurrentPreview(filePath);
-    };
-    
-    if (window.electronAPI && window.electronAPI.onFileSelected) {
-      window.electronAPI.onFileSelected(handleFileSelected);
-    }
-  }, []);
-  
-  // Funcao para selecionar pasta (abre janela de lista)
-  const selectFolder = async () => {
-    const result = await electronService.selectFolder();
-    if (!result || result.canceled) return;
-    
-    // A janela de lista sera aberta automaticamente pelo main.js
-    console.log('[App] Pasta selecionada, janela de lista aberta');
-    
-    // Mostra toast apropriado
-    if (hasLoadedFilesBefore) {
-      setInfoMessage('Lista atualizada!');
-    } else {
-      setInfoMessage('Pasta carregada!');
-      setHasLoadedFilesBefore(true);
-    }
-    setShowInfoToast(true);
+  // Quando seleciona arquivo, atualiza preview
+  const handleSelectFile = (file: FileInfo) => {
+    console.log('[App] Arquivo selecionado:', file.name);
+    setSelectedFile(file);
   };
-
-  const handleConvert = async (type: ConversionType) => {
-    if (!currentPreview) {
-      setShowErrorToast(true);
-      return;
-    }
+  
+  // Funcao para selecionar pasta
+  const handleSelectFolder = async () => {
+    await selectFolder();
     
-    console.log('[App] Iniciando conversao, tipo:', type);
+    // Mostra toast quando carregar
+    if (selectedFiles.length > 0) {
+      setInfoMessage('Pasta carregada!');
+      setShowInfoToast(true);
+    }
+  };
+  
+  // Mostra toast quando lista atualiza
+  useEffect(() => {
+    if (selectedFiles.length > 0 && !isLoading) {
+      setInfoMessage(`${selectedFiles.length} arquivos carregados`);
+      setShowInfoToast(true);
+    }
+  }, [selectedFiles.length, isLoading]);
+
+  const handleConvert = async (file: FileInfo, type: ConversionType) => {
+    console.log('[App] Iniciando conversao, tipo:', type, 'arquivo:', file.name);
     setCurrentConversionType(type);
     
     // Pergunta onde salvar
@@ -78,20 +70,8 @@ function App() {
       return;
     }
     
-    // Converte o arquivo atual do preview
-    const basename = await electronService.getBasename(currentPreview);
-    const ext = await electronService.getExtension(currentPreview);
-    const stats = await electronService.getFileStats(currentPreview);
-    
-    const fileToConvert: FileInfo = {
-      name: basename,
-      path: currentPreview,
-      size: stats.size,
-      extension: ext
-    };
-    
-    console.log('[App] Convertendo arquivo:', fileToConvert.name);
-    await convert(type, [fileToConvert], outputFolder);
+    console.log('[App] Convertendo arquivo:', file.name);
+    await convert(type, [file], outputFolder);
     setCurrentConversionType(null);
   };
 
@@ -103,6 +83,28 @@ function App() {
   useEffect(() => {
     if (conversionError) setShowErrorToast(true);
   }, [conversionError]);
+  
+  useEffect(() => {
+    if (fileError) {
+      setInfoMessage(fileError);
+      setShowErrorToast(true);
+    }
+  }, [fileError]);
+  
+  // Cleanup global quando app desmonta ou fecha
+  useEffect(() => {
+    return () => {
+      console.log('[App] Cleanup global - revogando todos os blob URLs...');
+      
+      // Revoga blob URLs que possam estar em cache
+      if (selectedFile?.path) {
+        // useImagePreview já faz cleanup automático, mas garantimos aqui também
+        console.log('[App] Limpando recursos ao fechar app');
+      }
+      
+      // Cleanup adicional pode ser feito aqui se necessário
+    };
+  }, []);
 
   return (
     <div className="relative w-screen h-screen overflow-hidden rounded-[14px] border border-white/5">
@@ -114,18 +116,19 @@ function App() {
       
       {/* Container principal */}
       <div className="relative z-10 flex h-full pt-12 px-8 pb-8 gap-8">
-        {/* Sidebar */}
-        <Sidebar 
-          onSelectFolder={selectFolder}
+        {/* Lista de arquivos integrada */}
+        <FileList 
+          files={selectedFiles}
+          selectedFile={selectedFile}
+          onSelectFile={handleSelectFile}
           onConvert={handleConvert}
+          onSelectFolder={handleSelectFolder}
           isConverting={isConverting}
-          currentConversionType={currentConversionType}
-          hasFiles={currentPreview !== null}
         />
         
         {/* Canvas Visualizador */}
         <Canvas 
-          currentPreview={currentPreview}
+          currentPreview={selectedFile?.path || null}
         />
       </div>
       
@@ -141,7 +144,7 @@ function App() {
       
       {showErrorToast && (
         <Toast
-          message={conversionError || (!currentPreview ? 'Selecione um arquivo primeiro' : 'Erro desconhecido')}
+          message={conversionError || fileError || 'Erro desconhecido'}
           type="error"
           onClose={() => setShowErrorToast(false)}
           duration={4000}

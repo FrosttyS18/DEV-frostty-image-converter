@@ -1,4 +1,4 @@
-# 📦 Guia de Instalação - DEU Frostty Image Converter
+# 📦 Guia de Instalação - DEV Frostty Image Converter
 
 ## ✅ Pré-requisitos
 

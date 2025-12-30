@@ -445,5 +445,3 @@ async function ozjToJpg(ozjPath: string, outputFolder?: string): Promise<void> {
   
   console.log('[OZJ→JPG] ========================================');
 }
-
-// OZD → DDS removido - formato proprietário não implementado

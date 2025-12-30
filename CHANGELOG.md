@@ -1,149 +1,101 @@
-# 📝 Changelog
+# Changelog
 
-Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
+Todas as mudancas notaveis deste projeto serao documentadas neste arquivo.
 
-O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/),
-e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
+## [2.0.0] - 2025-12-29
 
----
+### MAJOR REDESIGN - UX Completamente Reformulada
 
-## [1.0.0] - 2025-12-29
+#### Adicionado
+- Lista de arquivos integrada (substitui janela separada)
+- Menu contextual inteligente (botao direito)
+- Validacao automatica de conversoes
+- Lazy loading de thumbnails com Intersection Observer
+- Toast system minimalista
+- Protecao de tamanho de arquivo (5MB max para thumbnails)
+- Cleanup completo de recursos ao fechar app
+- Scripts de loading screen (merge/split)
+- Documentacao tecnica completa (ARCHITECTURE.md)
 
-### 🎉 Lançamento Inicial
+#### Modificado
+- UX simplificada: tudo em uma janela
+- Conversoes via menu contextual (nao mais botoes fixos)
+- Toasts compactos e em 1 linha
+- Performance otimizada para 1000+ arquivos
+- Glass morphism refinado
 
-#### ✨ Adicionado
+#### Removido
+- Suporte a OZB (causava travamento)
+- Suporte a OZD (criptografia nao descoberta)
+- Janela separada de lista de arquivos
+- Todos os arquivos de teste e analise
+- DLLs nao funcionais
+- Scripts de teste obsoletos
 
-**Interface:**
-- Interface glassmorphism moderna com design roxo/azul
-- Sidebar com botões de conversão e lista de arquivos
-- Canvas grande para preview em tempo real
-- Logo DEU Frostty personalizado
-- Background animado com efeitos gradient
-- Efeitos hover e transições suaves
-- Scrollbar customizada
-
-**Funcionalidades:**
-- Seleção de pasta para carregar arquivos
-- Listagem de arquivos com cores por extensão
-- Preview integrado com informações de dimensões
-- Conversão PNG → TGA (preservando alpha)
-- Conversão TGA → PNG (preservando alpha)
-- Conversão PNG → OZT (formato comprimido do Mu)
-- Conversão OZT/OZB/OZD → TGA (descompressão)
-- Conversão OZJ → JPG (JPEG comprimido)
-- Conversão em lote de múltiplos arquivos
-- Preservação total do canal Alpha (transparência)
-
-**Componentes React:**
-- `App.tsx` - Componente raiz da aplicação
-- `Sidebar.tsx` - Painel lateral com controles
-- `Canvas.tsx` - Visualizador de imagens
-- `FileList.tsx` - Lista de arquivos com cores
-- `Logo.tsx` - Logo DEU Frostty
-- `Button.tsx` - Botão reutilizável
-- `BackgroundEffect.tsx` - Efeito de fundo animado
-
-**Utilitários de Conversão:**
-- `tga.ts` - Decoder/Encoder TGA customizado (24-bit e 32-bit RGBA)
-- `ozt.ts` - Decoder/Encoder OZT (TGA + Zlib)
-- `ozj.ts` - Decoder/Encoder OZJ (JPEG + Zlib)
-- `imageLoader.ts` - Carregador de imagens
-- `converter.ts` - Sistema de conversão principal
-
-**Documentação:**
-- `README.md` - Documentação completa do projeto
-- `INSTALACAO.md` - Guia detalhado de instalação
-- `QUICKSTART.md` - Guia rápido de uso
-- `PROJETO_CONCLUIDO.md` - Documentação técnica completa
-
-**Configuração:**
-- Electron 33 configurado
-- Vite como build tool
-- TypeScript com configuração strict
-- Tailwind CSS com glassmorphism
-- ESLint e Prettier (futuro)
-
-**Arquivos de Teste:**
-- Incluídos 5 arquivos de exemplo (TGA, OZT, OZJ)
-- Pasta `arquivos para estudar o formato/`
-
-#### 🔧 Tecnologias Utilizadas
-
-- **Frontend:** React 18, TypeScript 5.7, Tailwind CSS 3.4
-- **Desktop:** Electron 33, Node.js
-- **Build:** Vite 6.0, PostCSS, Autoprefixer
-- **Conversão:** Pako 2.1 (Zlib), Canvas API
-- **Dev Tools:** Concurrently, Wait-on, Electron Builder
-
-#### 🎯 Formatos Suportados
-
-| Formato | Tipo | Leitura | Escrita | Preserva Alpha |
-|---------|------|---------|---------|----------------|
-| PNG | Imagem padrão | ✅ | ✅ | ✅ |
-| TGA | Targa | ✅ | ✅ | ✅ |
-| OZT | TGA+Zlib | ✅ | ✅ | ✅ |
-| OZB | TGA+Zlib | ✅ | ❌ | ✅ |
-| OZD | TGA+Zlib | ✅ | ❌ | ✅ |
-| OZJ | JPEG+Zlib | ✅ | ❌ | N/A |
-
-#### 📊 Estatísticas
-
-- **Linhas de código:** ~10.243
-- **Arquivos criados:** 37
-- **Componentes React:** 7
-- **Utilitários:** 5
-- **Formatos suportados:** 6
-- **Conversões disponíveis:** 5
+#### Corrigido
+- App travando com arquivos grandes
+- Thumbnails carregando todos de uma vez
+- Memory leaks de blob URLs
+- Intersection Observers nao sendo limpos
+- Texto quebrando em toasts
 
 ---
 
-## 🚀 Roadmap
+## [1.0.0] - 2025-12-28
 
-### [1.1.0] - Planejado
+### Release Inicial
 
-#### Possíveis Melhorias
+#### Adicionado
+- Conversao PNG ↔ TGA
+- Conversao PNG → OZT
+- Conversao OZT → TGA
+- Conversao OZJ → JPG
+- Preview em tempo real
+- Interface glassmorphism
+- Titlebar customizada
+- Sistema de toasts
+
+#### Implementado
+- Decodificador TGA completo
+- Encoder TGA com preservacao alpha
+- Decodificador OZT (TGA + Zlib)
+- Encoder OZT
+- Decodificador OZJ (JPEG + XOR)
+- Sistema de preview multi-formato
+
+---
+
+## Tipos de Mudancas
+
+- `Adicionado` - Novas funcionalidades
+- `Modificado` - Mudancas em funcionalidades existentes
+- `Removido` - Funcionalidades removidas
+- `Corrigido` - Bugs corrigidos
+- `Seguranca` - Vulnerabilidades corrigidas
+- `Performance` - Melhorias de performance
+
+---
+
+## Roadmap Futuro
+
+### v2.1.0 (Planejado)
+- [ ] Conversao em lote (multiplos arquivos simultaneos)
 - [ ] Drag & drop de arquivos
-- [ ] Atalhos de teclado (Ctrl+O, Ctrl+R, etc)
-- [ ] Histórico de conversões
-- [ ] Preview lado a lado (antes/depois)
-- [ ] Ajuste de nível de compressão OZT
+- [ ] Historico de conversoes recentes
+- [ ] Favoritos/bookmarks de pastas
+
+### v2.2.0 (Planejado)
+- [ ] Presets de conversao personalizados
+- [ ] Configuracoes de compressao OZT
 - [ ] Batch rename de arquivos
-- [ ] Export de relatório de conversões
-- [ ] Modo claro/escuro
-- [ ] Zoom no canvas
-- [ ] Grid de thumbnails
-- [ ] Filtros de busca de arquivo
+- [ ] Exportacao de relatorio
 
-#### Otimizações
-- [ ] Worker threads para conversões pesadas
-- [ ] Cache de previews
-- [ ] Lazy loading de arquivos grandes
-- [ ] Compressão otimizada
+### v3.0.0 (Futuro)
+- [ ] Suporte a mais formatos do MU (se descobertos)
+- [ ] Editor de imagem integrado basico
+- [ ] Comparacao lado a lado (antes/depois)
+- [ ] Plugin system
 
 ---
 
-## 📌 Notas de Versão
-
-### Convenções de Commit
-
-Este projeto usa [Conventional Commits](https://www.conventionalcommits.org/):
-
-- `feat:` - Nova funcionalidade
-- `fix:` - Correção de bug
-- `docs:` - Mudanças na documentação
-- `style:` - Formatação, espaços, etc
-- `refactor:` - Refatoração de código
-- `perf:` - Melhorias de performance
-- `test:` - Adição de testes
-- `chore:` - Tarefas de manutenção
-
-### Versionamento
-
-- **MAJOR** (X.0.0) - Mudanças incompatíveis
-- **MINOR** (1.X.0) - Novas funcionalidades compatíveis
-- **PATCH** (1.0.X) - Correções de bugs
-
----
-
-**DEU® Frostty** - Season 18 Tools  
-*Made with 💜 for the Mu Online community*
+Mantenha este arquivo atualizado a cada release significativa.

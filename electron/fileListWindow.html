@@ -717,7 +717,7 @@
           // TGA direto
           imageData = decodeTGASimple(arrayBuffer);
         } else if (extLower === '.ozt') {
-          // OZT: TGA comprimido com zlib (.ozb e .ozd removidos - muito encriptados)
+          // OZT: TGA comprimido com zlib
           const compressed = new Uint8Array(arrayBuffer);
           
           // PROTECAO: Verifica se e JPEG direto (alguns .OZT sao na verdade JPEG grandes)

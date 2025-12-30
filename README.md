@@ -1,178 +1,232 @@
-# 🎮 DEU Frostty - Image Converter
+# DEV Frostty - Image Converter
 
 Conversor de imagens profissional para Mu Online Season 18 com interface glassmorphism moderna.
 
-![DEU Frostty](https://img.shields.io/badge/Season-18-purple)
 ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)
 ![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)
 ![Electron](https://img.shields.io/badge/Electron-191970?logo=Electron&logoColor=white)
 
-## ✨ Recursos
+## Recursos
 
-- 🎨 **Interface Glassmorphism** moderna e elegante
-- 🖼️ **Visualização em tempo real** de todos os formatos
-- 🔄 **Conversões suportadas**:
-  - PNG ↔ TGA
-  - PNG → OZT (formato comprimido do Mu)
-  - OZT/OZB/OZD → TGA
-  - OZJ → JPG
-- 🎯 **Preservação total do canal Alpha** (crítico para o jogo!)
-- 📦 **Conversão em lote** de múltiplos arquivos
-- 🔍 **Preview integrado** com informações de dimensões
+- Interface Glassmorphism moderna e minimalista
+- Visualizacao em tempo real com preview de imagens
+- Lista integrada de arquivos com lazy loading de thumbnails
+- Menu contextual inteligente (botao direito)
+- Conversoes validadas automaticamente
+- Preservacao total do canal Alpha
+- Performance otimizada para milhares de arquivos
 
-## 🚀 Instalação
+## Conversoes Suportadas
+
+| Origem | Destino | Uso |
+|--------|---------|-----|
+| PNG | TGA | Preparar textura para edicao |
+| TGA | PNG | Converter para edicao |
+| PNG | OZT | Criar textura para o jogo |
+| OZT | TGA | Extrair textura do jogo |
+| OZJ | JPG | Extrair imagens JPEG |
+
+## Formatos do Mu Online
+
+| Formato | Tipo | Descricao |
+|---------|------|-----------|
+| **OZT** | TGA + Zlib | Texturas comprimidas (Interface, Items, etc) |
+| **OZJ** | JPEG + XOR | Imagens JPEG (Loading screens, backgrounds) |
+| **TGA** | Targa | Formato intermediario |
+| **PNG** | PNG | Formato de edicao |
+
+## Instalacao
 
 ### Requisitos
-- Node.js 18+ 
+- Node.js 18+
 - npm ou yarn
 
-### Passo a passo
+### Passos
 
-1. **Instalar dependências**
 ```bash
+# 1. Instalar dependencias
 npm install
-```
 
-2. **Executar em modo desenvolvimento**
-```bash
+# 2. Executar em modo desenvolvimento
 npm run dev
-```
 
-3. **Compilar aplicação**
-```bash
+# 3. Compilar aplicacao
 npm run build
 npm run electron:build
 ```
 
-## 📖 Como Usar
+## Como Usar
 
-### Workflow Básico
+### Fluxo de Trabalho
 
-1. **Selecionar Pasta** 
-   - Clique em "Selecionar Pasta" e escolha a pasta com os arquivos do Mu
+1. **Selecionar Pasta**
+   - Clique em "Selecionar Pasta"
+   - Escolha a pasta do MU Online (ex: Data/Interface)
 
-2. **Visualizar**
-   - Clique em qualquer arquivo da lista para ver o preview no canvas
+2. **Selecionar Arquivo**
+   - Clique no arquivo na lista
+   - Preview aparece automaticamente ao lado
 
 3. **Converter**
-   - Escolha o tipo de conversão desejada
-   - Os arquivos serão convertidos automaticamente
+   - Clique com botao DIREITO no arquivo
+   - Menu contextual mostra conversoes validas
+   - Escolha a conversao desejada
+   - Selecione pasta de destino
 
-### Exemplos de Uso
+### Exemplos Praticos
 
 #### Editar textura do jogo
 
 ```
-1. OZT → TGA (ou PNG)  - Extrair do formato do jogo
-2. Editar no Photoshop/GIMP
-3. Salvar como PNG
-4. PNG → OZT - Converter de volta para o jogo
+1. OZT → TGA - Extrair do formato do jogo
+2. TGA → PNG - Converter para edicao
+3. Editar no Photoshop/GIMP
+4. PNG → TGA - Preparar para converter
+5. (Opcional) TGA → OZT - Converter de volta
 ```
 
-#### Preparar nova textura
+#### Criar nova textura
 
 ```
-1. Criar imagem em PNG (com transparência se necessário)
-2. PNG → OZT - Converter para formato do jogo
-3. Colocar na pasta do cliente
+1. Criar imagem em PNG (1024x1024 recomendado)
+2. Garantir transparencia (canal alpha) se necessario
+3. PNG → OZT - Converter para o jogo
+4. Colocar na pasta Data/Interface do MU
 ```
 
-## 🎨 Formatos Suportados
+## Tecnologias
 
-| Formato | Tipo | Uso |
-|---------|------|-----|
-| **PNG** | Imagem padrão | Edição e visualização |
-| **TGA** | Targa | Formato intermediário |
-| **OZT** | Comprimido (TGA+Zlib) | Texturas do Mu Online |
-| **OZB** | Comprimido (TGA+Zlib) | Texturas do Mu Online |
-| **OZD** | Comprimido (TGA+Zlib) | Texturas do Mu Online |
-| **OZJ** | Comprimido (JPG+Zlib) | Imagens JPEG do Mu |
+- **Electron** - Framework desktop multiplataforma
+- **React 18** - Interface de usuario moderna
+- **TypeScript** - Tipagem estatica e seguranca
+- **Vite** - Build tool rapido
+- **Tailwind CSS** - Estilizacao utilitaria
+- **Pako** - Compressao/Descompressao Zlib
 
-## ⚙️ Tecnologias
-
-- **Electron** - Framework desktop
-- **React 18** - Interface de usuário
-- **TypeScript** - Tipagem estática
-- **Vite** - Build tool
-- **Tailwind CSS** - Estilização
-- **Pako** - Compressão/Descompressão Zlib
-
-## 🔧 Estrutura do Projeto
+## Arquitetura
 
 ```
-deu-frostty-image-converter/
-├── electron/           # Código Electron
-│   ├── main.js        # Processo principal
-│   └── preload.js     # Preload script
-├── src/
-│   ├── components/    # Componentes React
-│   │   ├── Sidebar.tsx
-│   │   ├── Canvas.tsx
-│   │   ├── Logo.tsx
-│   │   └── ...
-│   ├── utils/         # Utilitários de conversão
-│   │   ├── tga.ts     # Encoder/Decoder TGA
-│   │   ├── ozt.ts     # Encoder/Decoder OZT
-│   │   ├── ozj.ts     # Encoder/Decoder OZJ
-│   │   └── converter.ts
-│   ├── types/         # Definições TypeScript
-│   ├── App.tsx        # Componente raiz
-│   └── main.tsx       # Entry point
-├── package.json
-└── README.md
+src/
+├── components/
+│   ├── FileList.tsx        # Lista integrada com menu contextual
+│   ├── Canvas.tsx          # Visualizador de preview
+│   ├── CustomTitlebar.tsx  # Barra de titulo customizada
+│   ├── Toast.tsx           # Notificacoes
+│   └── ...
+├── hooks/
+│   ├── useConversion.ts    # Gerenciamento de conversoes
+│   ├── useFileSelection.ts # Selecao de arquivos
+│   └── useImagePreview.ts  # Preview com lazy loading
+├── utils/
+│   ├── tga.ts              # Encoder/Decoder TGA
+│   ├── ozt.ts              # Encoder/Decoder OZT (TGA+Zlib)
+│   ├── ozj.ts              # Decoder OZJ (JPEG+XOR)
+│   ├── converter.ts        # Orquestrador de conversoes
+│   └── conversionValidator.ts # Validador de conversoes
+├── types/
+│   └── index.ts            # Definicoes TypeScript
+└── App.tsx                 # Componente raiz
+
+electron/
+├── main.js                 # Processo principal Electron
+├── preload.cjs             # Bridge segura IPC
+└── fileListWindow.html     # Janela de lista (legado)
 ```
 
-## 🎯 Preservação do Canal Alpha
+## Performance e Seguranca
 
-⚠️ **IMPORTANTE**: Este conversor foi desenvolvido com foco especial na preservação do canal alpha (transparência). Perder o canal alpha pode causar:
-- Texturas corrompidas no jogo
-- Bordas brancas/pretas indesejadas
-- Elementos de UI quebrados
+### Lazy Loading de Thumbnails
+- Carrega apenas thumbnails visiveis (viewport + 50px)
+- Intersection Observer para deteccao
+- Cleanup automatico de recursos
+- Limite de 5MB por thumbnail
 
-Todas as conversões mantêm **100% do canal alpha original**.
+### Gerenciamento de Memoria
+- Revogacao automatica de Blob URLs
+- Cleanup de Intersection Observers
+- Remocao de event listeners ao desmontar
+- Limpeza completa ao fechar aplicacao
 
-## 🐛 Solução de Problemas
+### Validacao de Conversoes
+- Menu contextual mostra apenas opcoes validas
+- Validacao por extensao de arquivo
+- Prevencao de erros de usuario
+- Feedback claro via toasts
 
-### Arquivo OZT não abre no jogo
-- Verifique se a extensão está correta (.ozt)
-- Confirme se o arquivo original tinha canal alpha
-- Tente converter OZT → TGA → PNG para verificar integridade
+## Preservacao do Canal Alpha
 
-### Preview não carrega
-- Arquivo pode estar corrompido
-- Formato pode não ser suportado
-- Verifique o console para erros
+IMPORTANTE: Este conversor foi desenvolvido com foco especial na preservacao do canal alpha (transparencia).
 
-### Conversão falha
-- Arquivo de origem pode estar corrompido
-- Falta de permissões de escrita na pasta
-- Formato de arquivo inválido
+Todas as conversoes mantem 100% do canal alpha original, essencial para:
+- Texturas de interface (UI)
+- Items com transparencia
+- Efeitos visuais
+- Elementos HUD
 
-## 📝 Notas de Desenvolvimento
+## Scripts Auxiliares
 
-### Por que Electron + React?
+### convert-ozj-batch.js
+Converte multiplos OZJ para JPG em lote.
 
-- **Glassmorphism**: CSS moderno com `backdrop-filter`
-- **Performance**: Canvas HTML5 para preview rápido
-- **Cross-platform**: Funciona em Windows, Mac e Linux
-- **Moderno**: Componentização e TypeScript
+```bash
+node convert-ozj-batch.js "C:\MU\Data\Interface" "output-jpg" "lo_back_s5_im"
+```
 
-### Formato OZT Explicado
+### merge-loading-screen.js
+Junta pecas de loading screen em imagem completa.
 
-O formato OZT do Mu Online é simplesmente:
-1. Um arquivo TGA normal
+```bash
+node merge-loading-screen.js "C:\MU\Data\Interface" "lo_back_s5_im"
+```
+
+### split-loading-screen.js
+Divide imagem editada de volta em pecas OZJ.
+
+```bash
+node split-loading-screen.js imagem_COMPLETO.png layout.json output
+```
+
+Veja `LOADING-SCREEN-TOOLS.md` para detalhes.
+
+## Solucao de Problemas
+
+### Preview nao carrega
+- Arquivo muito grande (> 5MB) - thumbnails desabilitados
+- Arquivo corrompido - verifique console
+- Formato nao suportado
+
+### Conversao falha
+- Extensao de arquivo incorreta
+- Arquivo corrompido
+- Falta de permissoes na pasta de destino
+- Espaco em disco insuficiente
+
+### App trava ao carregar pasta
+- Muitos arquivos grandes (> 5MB cada)
+- Protecao implementada: thumbnails pulados automaticamente
+
+## Formato OZT Explicado
+
+O formato OZT do Mu Online:
+1. Arquivo TGA normal (32-bit BGRA ou 24-bit BGR)
 2. Comprimido com Zlib (algoritmo Deflate)
-3. Mantém todas as propriedades do TGA original
+3. Mantem todas as propriedades do TGA original
+4. Pode ter offset de 4 bytes (formato Mu Online customizado)
 
-## 📄 Licença
+## Formato OZJ Explicado
+
+O formato OZJ do Mu Online:
+1. Arquivo JPEG padrao
+2. Pode ter XOR simples (chave 0xFC) - arquivos pequenos
+3. Pode ser JPEG direto - arquivos grandes (loading screens)
+4. Pode ter offset de 24 bytes em alguns casos
+
+## Licenca
 
 MIT License - Uso livre para projetos pessoais e educacionais.
 
-## 🤝 Contribuições
+## Autor
 
-Sugestões e melhorias são bem-vindas!
+**DEV Frostty** - Season 18 Tools
 
----
-
-**DEU® Frostty** - Season 18 Tools
-Made with 💜 for the Mu Online community
+Desenvolvido para a comunidade Mu Online Brasil.

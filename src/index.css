@@ -80,13 +80,13 @@ code {
 }
 
 /* =====================================
-   PREMIUM BUTTON STYLES - DEU Frostty
+   PREMIUM BUTTON STYLES - DEV Frostty
    Baseado no mu-server-manager
    ===================================== */
 
 :root {
   /* Brand */
-  --sm-primary: 123, 63, 242; /* Roxo do DEU Frostty */
+  --sm-primary: 123, 63, 242; /* Roxo do DEV Frostty */
 
   /* Rainbow spectrum (gradiente colorido dos botões) */
   --sm-btn-spectrum: linear-gradient(

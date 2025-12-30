@@ -1,112 +1,200 @@
-# 🚀 Quick Start Guide
+# Guia Rapido - DEV Frostty Image Converter
 
-## Instalação Rápida
+## Inicio Rapido (3 passos)
 
-```bash
-# 1. Instalar dependências
-npm install
-
-# 2. Executar aplicação
-npm run dev
+### 1. Selecionar Pasta
+```
+Clique em "Selecionar Pasta"
+   ↓
+Escolha: C:\MU\Data\Interface
+   ↓
+Lista de arquivos carrega automaticamente
 ```
 
-## Primeira Execução
-
-1. Aguarde o Electron abrir (pode demorar alguns segundos na primeira vez)
-2. A janela abrirá automaticamente com a interface DEU Frostty
-3. Clique em "Selecionar Pasta" e escolha a pasta com arquivos do Mu
-
-## Comandos Disponíveis
-
-```bash
-# Desenvolvimento (hot-reload)
-npm run dev
-
-# Build de produção
-npm run build
-
-# Gerar executável
-npm run electron:build
-
-# Preview do build
-npm run preview
+### 2. Selecionar Arquivo
+```
+Clique no arquivo desejado
+   ↓
+Preview aparece no canvas ao lado
+   ↓
+Veja dimensoes e informacoes
 ```
 
-## Estrutura de Pastas Recomendada
+### 3. Converter
+```
+Clique com BOTAO DIREITO no arquivo
+   ↓
+Menu mostra conversoes validas
+   ↓
+Clique na conversao desejada
+   ↓
+Escolha pasta de destino
+   ↓
+Pronto!
+```
+
+## Conversoes Mais Comuns
+
+### Extrair textura do jogo para editar
 
 ```
-Mu Online/
-├── Data/          # Arquivos do cliente
-│   ├── Interface/ # Arquivos OZT/OZB
-│   └── Textures/  # Arquivos OZT/TGA
-└── Edited/        # Suas edições (criar esta pasta)
+Arquivo no jogo: item.ozt
+
+OZT → TGA (menu contextual)
+   ↓
+Abre item.tga no Photoshop
+   ↓
+Edita a textura
+   ↓
+Salva como PNG
 ```
 
-## Workflow Recomendado
+### Criar textura nova para o jogo
 
-### Para Editar Texturas Existentes
+```
+Cria imagem no Photoshop (PNG, 512x512)
+   ↓
+Salva como item_novo.png
+   ↓
+Seleciona pasta com PNG
+   ↓
+PNG → OZT (menu contextual)
+   ↓
+Copia item_novo.ozt para C:\MU\Data\Interface
+```
 
-1. **Extrair**: Selecione a pasta `Data/Interface`
-2. **Converter**: OZT → PNG
-3. **Editar**: Abra o PNG no Photoshop/GIMP
-4. **Salvar**: Salve mantendo transparência
-5. **Reconverter**: PNG → OZT
-6. **Testar**: Copie o OZT de volta para a pasta do jogo
+### Extrair imagem de loading screen
 
-### Para Criar Novas Texturas
+```
+Arquivo no jogo: lo_back_s5_im01.OZJ
 
-1. **Criar**: Faça a imagem em PNG (1024x1024 ou menor)
-2. **Adicionar Alpha**: Certifique-se de ter canal alpha se precisar transparência
-3. **Converter**: PNG → OZT
-4. **Usar**: Coloque no cliente do Mu
+OZJ → JPG (menu contextual)
+   ↓
+Abre lo_back_s5_im01.jpg
+```
+
+## Atalhos e Dicas
+
+### Menu Contextual
+- **Botao direito** no arquivo = Menu de conversoes
+- Opcoes invalidas aparecem desabilitadas
+- Apenas conversoes validas clicaveis
+
+### Preview
+- **Clique no arquivo** = Mostra preview automaticamente
+- Preview em tempo real no canvas
+- Dimensoes e informacoes exibidas
+
+### Performance
+- Lazy loading automatico de thumbnails
+- Apenas 10-15 thumbs carregam inicialmente
+- Scroll carrega mais thumbnails sob demanda
+- Arquivos > 5MB nao geram thumbnail (icone apenas)
+
+## Estrutura de Pastas do MU
+
+```
+MU Online/
+├── Data/
+│   ├── Interface/     # Arquivos OZT, OZJ (UI, items, icons)
+│   ├── Texture/       # Arquivos OZT (texturas de terreno)
+│   ├── Player/        # Arquivos OZT (modelos de personagem)
+│   └── Skill/         # Arquivos OZT (efeitos de skill)
+```
+
+## Formatos Explicados
+
+| Formato | O que e | Onde usar |
+|---------|---------|-----------|
+| **PNG** | Imagem padrao | Edicao (Photoshop/GIMP) |
+| **TGA** | Targa (32-bit) | Intermediario, edicao |
+| **OZT** | TGA + Zlib | Texturas do MU (formato final) |
+| **OZJ** | JPEG (+XOR) | Imagens JPEG do MU |
+
+## Casos de Uso
+
+### Caso 1: Mudar cor de um item
+
+```
+1. Encontra arquivo: Sword.ozt
+2. Botao direito → OZT → TGA
+3. Abre Sword.tga no Photoshop
+4. Ajusta cor/saturacao
+5. Salva como Sword_novo.png
+6. Botao direito → PNG → OZT
+7. Renomeia para Sword.ozt
+8. Substitui no MU
+```
+
+### Caso 2: Criar icon customizado
+
+```
+1. Desenha icon 32x32 no Photoshop
+2. Salva como icon_custom.png (com transparencia)
+3. Coloca PNG na pasta do conversor
+4. Seleciona pasta
+5. Botao direito no PNG → PNG → OZT
+6. Copia icon_custom.ozt para C:\MU\Data\Interface
+7. Edita ItemList.bmd para usar o novo icon
+```
+
+### Caso 3: Editar tela de loading
+
+```
+1. Converte 6 pecas: lo_back_s5_im01-06.OZJ → JPG
+2. Monta imagem completa no Photoshop
+3. Edita a imagem
+4. Divide de volta em 6 pecas
+5. Converte cada peca de volta para OZJ
+6. Substitui no MU
+```
+
+Use os scripts `merge-loading-screen.js` e `split-loading-screen.js` para automatizar.
 
 ## Dicas Importantes
 
-✅ **Sempre mantenha backups** dos arquivos originais
-✅ **Preserve o canal alpha** (transparência)
-✅ **Use PNG com 32-bit** (RGBA) para melhores resultados
-✅ **Teste no jogo** antes de distribuir
+### Canal Alpha (Transparencia)
+- SEMPRE preservar canal alpha em texturas de UI
+- Use PNG-32 (com alpha) ao editar
+- Nao achate a imagem ao salvar
+- Teste no jogo antes de distribuir
 
-⚠️ **Evite**:
-- Salvar PNG em 24-bit (perde alpha)
-- Usar JPEG (sem transparência)
-- Editar dimensões sem necessidade
+### Dimensoes
+- Items: geralmente 32x32 ou 64x64
+- Interface: variam (128x128, 256x256, 512x512)
+- Loading screens: muito grandes (varios MB)
 
-## Troubleshooting Rápido
+### Organizacao
+- Mantenha backup dos arquivos originais
+- Crie pastas separadas para suas texturas
+- Documente mudancas feitas
 
-### Aplicação não abre
-```bash
-# Limpe e reinstale
-rm -rf node_modules
-npm install
-npm run dev
-```
+## Solucao Rapida de Problemas
 
-### Erro ao converter
-- Verifique se o arquivo não está aberto em outro programa
-- Confirme que você tem permissão de escrita na pasta
-- Tente converter um arquivo por vez primeiro
+| Problema | Solucao |
+|----------|---------|
+| Preview nao aparece | Arquivo > 5MB ou corrompido |
+| Conversao falha | Tipo invalido ou arquivo corrompido |
+| Menu nao abre | Clique com botao DIREITO |
+| Opcao desabilitada | Conversao invalida para esse formato |
 
-### Preview não aparece
-- Aguarde alguns segundos (arquivos grandes demoram)
-- Verifique se o formato é suportado
-- Pressione F12 e veja erros no console
+## Performance
 
-## Atalhos de Teclado (futuro)
+O conversor foi otimizado para:
+- Pastas com 1000+ arquivos
+- Lazy loading de thumbnails
+- Limite de 5MB para thumbnails
+- Memoria controlada
+- Cleanup automatico
 
-| Atalho | Ação |
-|--------|------|
-| Ctrl+O | Abrir pasta |
-| Ctrl+R | Recarregar lista |
-| F5 | Atualizar preview |
-| F12 | DevTools |
+## Proximos Passos
 
-## Suporte
-
-- GitHub Issues: [seu-repo]/issues
-- Discord: [seu-discord]
-- Email: [seu-email]
+1. Leia `LOADING-SCREEN-TOOLS.md` para ferramentas de loading screen
+2. Veja exemplos em `arquivos para estudar o formato/`
+3. Teste com arquivos pequenos primeiro
+4. Sempre faça backup!
 
 ---
 
-**Happy Converting! 💜**
+**DEV Frostty** - Season 18 Tools  
+Desenvolvido para a comunidade Mu Online

@@ -1,4 +1,4 @@
-# 🎉 Projeto Concluído - DEU Frostty Image Converter
+# 🎉 Projeto Concluído - DEV Frostty Image Converter
 
 ## ✅ O que foi criado?
 
@@ -13,7 +13,7 @@ Aplicação desktop moderna em **Electron + React + TypeScript** para converter 
 - ✅ **Sidebar** com botões de conversão
 - ✅ **Canvas visualizador** grande
 - ✅ **Background** animado roxo/azul
-- ✅ **Logo DEU Frostty** com design moderno
+- ✅ **Logo DEV Frostty** com design moderno
 - ✅ **Paleta de cores** roxa/azul consistente
 
 ### Componentes
@@ -77,7 +77,7 @@ App-mu/
 │   │   ├── App.tsx          # Componente raiz
 │   │   ├── Sidebar.tsx      # Sidebar com botões
 │   │   ├── Canvas.tsx       # Canvas visualizador
-│   │   ├── Logo.tsx         # Logo DEU Frostty
+│   │   ├── Logo.tsx         # Logo DEV Frostty
 │   │   ├── Button.tsx       # Botão reutilizável
 │   │   ├── FileList.tsx     # Lista de arquivos
 │   │   └── BackgroundEffect.tsx  # Fundo animado
@@ -275,7 +275,7 @@ Card Glass:     rgba(15, 15, 25, 0.6)
 ## 🙏 Créditos
 
 - **Design**: Baseado no visual do Server Manager
-- **Logo**: DEU Frostty
+- **Logo**: DEV Frostty
 - **Ícones**: SVG custom
 - **Background**: Efeito glassmorphism custom
 
@@ -303,5 +303,5 @@ Aplicação completa e funcional para converter imagens do Mu Online com:
 
 ---
 
-**DEU® Frostty** - Season 18 Tools
+**DEV® Frostty** - Season 18 Tools
 *Made with 💜 for the Mu Online community*

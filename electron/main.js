@@ -8,6 +8,7 @@ remoteMain.initialize();
 // IPC Handlers para controles de janela
 let mainWindow = null;
 let fileListWindow = null;
+let splashWindow = null;
 
 ipcMain.on('window-minimize', () => {
   if (mainWindow) mainWindow.minimize();
@@ -76,7 +77,7 @@ ipcMain.handle('get-window-bounds', () => {
   return null;
 });
 
-// Handler para selecionar pasta de origem e abrir janela de lista
+// Handler para selecionar pasta de origem (SEM abrir janela separada)
 ipcMain.handle('select-folder', async () => {
   try {
     const result = await dialog.showOpenDialog({
@@ -90,8 +91,8 @@ ipcMain.handle('select-folder', async () => {
 
     const folderPath = result.filePaths[0];
     
-    // Abre a janela de lista de arquivos
-    openFileListWindow(folderPath);
+    // NAO abre mais a janela separada - lista agora e integrada
+    // openFileListWindow(folderPath);
 
     return {
       canceled: false,
@@ -175,8 +176,6 @@ function updateFileList(folderPath) {
   try {
     const files = fs.readdirSync(folderPath);
     const supportedExtensions = ['.tga', '.png', '.ozj', '.ozt', '.jpg', '.jpeg'];
-    // '.ozb' removido - formato muito encriptado que causa travamento
-    // '.ozd' removido - formato não suportado
     
     const fileList = files
       .filter(file => {
@@ -276,10 +275,6 @@ ipcMain.handle('read-file', async (_event, filePath) => {
     return { ok: false, error: error.message };
   }
 });
-
-// Handler para converter OZD - DESABILITADO (formato não implementado)
-// Handler OZD removido - conversão não implementada
-// Formato proprietário que requer DLL específica ou algoritmo de criptografia não descoberto
 
 // Handler para gerar thumbnail (simplificado - retorna os dados raw)
 // A janela de lista renderiza apenas PNG/JPG por enquanto
@@ -389,7 +384,46 @@ ipcMain.handle('show-file-in-folder', async (_event, filePath) => {
   }
 });
 
+function createSplashScreen() {
+  splashWindow = new BrowserWindow({
+    width: 800,
+    height: 400,
+    resizable: false,
+    movable: true,
+    minimizable: false,
+    maximizable: false,
+    skipTaskbar: true,
+    closable: true,
+    frame: false,
+    transparent: true,
+    backgroundColor: '#00000000',
+    show: false,
+    alwaysOnTop: true,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+    },
+  });
+
+  splashWindow.loadFile(path.join(__dirname, 'splash.html'));
+
+  splashWindow.once('ready-to-show', () => {
+    try { 
+      splashWindow.show();
+    } catch {}
+  });
+
+  splashWindow.on('closed', () => {
+    splashWindow = null;
+  });
+  
+  return splashWindow;
+}
+
 function createWindow() {
+  // Cria splash screen primeiro
+  createSplashScreen();
+  
   // Caminho absoluto do preload
   const preloadPath = path.resolve(__dirname, './preload.cjs');
   
@@ -422,9 +456,22 @@ function createWindow() {
     },
   });
 
-  // Mostra quando pronto
+  // Mostra quando pronto e fecha splash (com delay minimo)
+  const splashStartTime = Date.now();
+  
   mainWindow.once('ready-to-show', () => {
-    mainWindow.show();
+    const MIN_SPLASH_DURATION = 3500; // 3.5 segundos minimo
+    const elapsedTime = Date.now() - splashStartTime;
+    const remainingTime = Math.max(0, MIN_SPLASH_DURATION - elapsedTime);
+    
+    // Aguarda tempo minimo antes de fechar splash
+    setTimeout(() => {
+      if (splashWindow && !splashWindow.isDestroyed()) {
+        splashWindow.close();
+        splashWindow = null;
+      }
+      mainWindow.show();
+    }, remainingTime);
   });
 
   // Em desenvolvimento, carrega do Vite dev server
@@ -450,6 +497,42 @@ app.whenReady().then(() => {
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
+});
+
+// Cleanup antes de encerrar o app
+app.on('before-quit', (event) => {
+  console.log('[Main] Iniciando cleanup antes de encerrar...');
+  
+  // Fecha splash se ainda existir
+  if (splashWindow && !splashWindow.isDestroyed()) {
+    console.log('[Main] Fechando splash...');
+    splashWindow.destroy();
+    splashWindow = null;
+  }
+  
+  // Fecha janela de lista se ainda existir
+  if (fileListWindow && !fileListWindow.isDestroyed()) {
+    console.log('[Main] Fechando janela de lista...');
+    fileListWindow.destroy();
+    fileListWindow = null;
+  }
+  
+  // Fecha janela principal
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    console.log('[Main] Fechando janela principal...');
+    mainWindow.destroy();
+    mainWindow = null;
+  }
+  
+  // Remove todos os IPC handlers
+  console.log('[Main] Removendo IPC handlers...');
+  ipcMain.removeAllListeners();
+  
+  // Limpa atalhos globais
+  console.log('[Main] Removendo atalhos globais...');
+  globalShortcut.unregisterAll();
+  
+  console.log('[Main] Cleanup completo!');
 });
 
 app.on('window-all-closed', function () {
