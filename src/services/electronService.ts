@@ -132,23 +132,14 @@ class ElectronService {
    */
   async writeFile(filePath: string, data: Uint8Array | Buffer): Promise<void> {
     try {
-      console.log('[ElectronService] Escrevendo arquivo:', filePath);
-      console.log('[ElectronService] Tamanho dos dados:', data.length, 'bytes');
-      
       const api = this.getAPI();
       const dataArray = data instanceof Uint8Array ? Array.from(data) : Array.from(new Uint8Array(data));
       
-      console.log('[ElectronService] Array convertido, tamanho:', dataArray.length);
-      
       const result = await api.writeFile(filePath, dataArray);
-
-      console.log('[ElectronService] Resultado do IPC:', result);
 
       if (!result.ok || result.error) {
         throw new Error(result.error || 'Erro ao escrever arquivo');
       }
-      
-      console.log('[ElectronService] Arquivo escrito com sucesso!');
     } catch (error) {
       console.error('[ElectronService] Erro ao escrever arquivo:', error);
       throw new Error('Não foi possível salvar este arquivo.');

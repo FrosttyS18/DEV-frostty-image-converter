@@ -19,9 +19,6 @@ export function decodeOZJ(buffer: ArrayBuffer): ArrayBuffer {
       throw new Error('Arquivo OZJ muito pequeno (mínimo 2 bytes)');
     }
     
-    console.log('[OZJ] Tamanho do arquivo:', data.length, 'bytes');
-    console.log('[OZJ] Primeiros 10 bytes:', Array.from(data.slice(0, Math.min(10, data.length))).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' '));
-    
     // Detecta se é JPEG direto (magic number: 0xFF 0xD8)
     const isJPEG = data.length >= 2 && data[0] === 0xFF && data[1] === 0xD8;
     

@@ -147,23 +147,11 @@ async function pngToTga(pngPath: string, outputFolder?: string): Promise<void> {
           ? await electronService.joinPath(outputFolder, filename)
           : pngPath.replace(/\.png$/i, '.tga');
         
-        console.log('[PNG→TGA] ========================================');
-        console.log('[PNG→TGA] Arquivo de origem:', pngPath);
-        console.log('[PNG→TGA] Pasta de destino:', outputFolder || 'mesma pasta do arquivo');
-        console.log('[PNG→TGA] Nome do arquivo:', filename);
-        console.log('[PNG→TGA] Caminho completo:', outputPath);
-        console.log('[PNG→TGA] Tamanho do buffer:', tgaBuffer.byteLength, 'bytes');
-        console.log('[PNG→TGA] Dimensões:', data.width, 'x', data.height);
-        console.log('[PNG→TGA] ========================================');
-        
         await electronService.writeFile(outputPath, new Uint8Array(tgaBuffer));
         
         // Verifica se o arquivo foi criado consultando stats
         try {
-          const stats = await electronService.getFileStats(outputPath);
-          console.log('[PNG→TGA] Arquivo criado com sucesso!');
-          console.log('[PNG→TGA] Tamanho verificado:', stats.size, 'bytes');
-          console.log('[PNG→TGA] Localizacao:', outputPath);
+          await electronService.getFileStats(outputPath);
         } catch (err) {
           console.error('[PNG→TGA] ERRO: Arquivo nao foi encontrado apos salvar!');
           throw new Error(`Arquivo TGA não foi criado: ${outputPath}`);
@@ -239,17 +227,13 @@ async function tgaToPng(tgaPath: string, outputFolder?: string): Promise<void> {
         console.log('[TGA→PNG] Pasta de destino:', outputFolder || 'mesma pasta do arquivo');
         console.log('[TGA→PNG] Nome do arquivo:', filename);
         console.log('[TGA→PNG] Caminho completo:', outputPath);
-        console.log('[TGA→PNG] Dimensões:', imageData.width, 'x', imageData.height);
         console.log('[TGA→PNG] ========================================');
         
         await electronService.writeFile(outputPath, new Uint8Array(buffer));
         
         // Verifica se o arquivo foi criado
         try {
-          const stats = await electronService.getFileStats(outputPath);
-          console.log('[TGA→PNG] Arquivo criado com sucesso!');
-          console.log('[TGA→PNG] Tamanho verificado:', stats.size, 'bytes');
-          console.log('[TGA→PNG] Localizacao:', outputPath);
+          await electronService.getFileStats(outputPath);
         } catch (err) {
           console.error('[TGA→PNG] ERRO: Arquivo nao foi encontrado apos salvar!');
           throw new Error(`Arquivo PNG não foi criado: ${outputPath}`);
@@ -310,7 +294,6 @@ async function pngToOzt(pngPath: string, outputFolder?: string): Promise<void> {
         
         console.log('[PNG→OZT] Dimensoes da imagem:', data.width, 'x', data.height, 'pixels');
         console.log('[PNG→OZT] Total de pixels:', data.width * data.height);
-        console.log('[PNG→OZT] Tamanho dos dados:', data.data.length, 'bytes');
         
         const oztBuffer = encodeOZT(data);
         const filename = (await electronService.getBasename(pngPath)).replace(/\.png$/i, '.ozt');
@@ -319,21 +302,11 @@ async function pngToOzt(pngPath: string, outputFolder?: string): Promise<void> {
           : pngPath.replace(/\.png$/i, '.ozt');
         
         console.log('[PNG→OZT] ========================================');
-        console.log('[PNG→OZT] Arquivo de origem:', pngPath);
-        console.log('[PNG→OZT] Pasta de destino:', outputFolder || 'mesma pasta do arquivo');
-        console.log('[PNG→OZT] Nome do arquivo:', filename);
-        console.log('[PNG→OZT] Caminho completo:', outputPath);
-        console.log('[PNG→OZT] Dimensões:', data.width, 'x', data.height);
-        console.log('[PNG→OZT] ========================================');
-        
         await electronService.writeFile(outputPath, new Uint8Array(oztBuffer));
         
         // Verifica se o arquivo foi criado
         try {
-          const stats = await electronService.getFileStats(outputPath);
-          console.log('[PNG→OZT] Arquivo criado com sucesso!');
-          console.log('[PNG→OZT] Tamanho verificado:', stats.size, 'bytes');
-          console.log('[PNG→OZT] Localizacao:', outputPath);
+          await electronService.getFileStats(outputPath);
         } catch (err) {
           console.error('[PNG→OZT] ERRO: Arquivo nao foi encontrado apos salvar!');
           throw new Error(`Arquivo OZT não foi criado: ${outputPath}`);
@@ -409,17 +382,13 @@ async function oztToPng(oztPath: string, outputFolder?: string): Promise<void> {
         console.log('[OZT→PNG] Pasta de destino:', outputFolder || 'mesma pasta do arquivo');
         console.log('[OZT→PNG] Nome do arquivo:', filename);
         console.log('[OZT→PNG] Caminho completo:', outputPath);
-        console.log('[OZT→PNG] Dimensões:', imageData.width, 'x', imageData.height);
         console.log('[OZT→PNG] ========================================');
         
         await electronService.writeFile(outputPath, new Uint8Array(buffer));
         
         // Verifica se o arquivo foi criado
         try {
-          const stats = await electronService.getFileStats(outputPath);
-          console.log('[OZT→PNG] Arquivo criado com sucesso!');
-          console.log('[OZT→PNG] Tamanho verificado:', stats.size, 'bytes');
-          console.log('[OZT→PNG] Localizacao:', outputPath);
+          await electronService.getFileStats(outputPath);
         } catch (err) {
           console.error('[OZT→PNG] ERRO: Arquivo nao foi encontrado apos salvar!');
           throw new Error(`Arquivo PNG não foi criado: ${outputPath}`);
@@ -464,17 +433,13 @@ async function oztToTga(oztPath: string, outputFolder?: string): Promise<void> {
   console.log('[OZT→TGA] Pasta de destino:', outputFolder || 'mesma pasta do arquivo');
   console.log('[OZT→TGA] Nome do arquivo:', filename);
   console.log('[OZT→TGA] Caminho completo:', outputPath);
-  console.log('[OZT→TGA] Dimensões:', imageData.width, 'x', imageData.height);
   console.log('[OZT→TGA] ========================================');
   
   await electronService.writeFile(outputPath, new Uint8Array(tgaBuffer));
   
   // Verifica se o arquivo foi criado
   try {
-    const stats = await electronService.getFileStats(outputPath);
-    console.log('[OZT→TGA] Arquivo criado com sucesso!');
-    console.log('[OZT→TGA] Tamanho verificado:', stats.size, 'bytes');
-    console.log('[OZT→TGA] Localizacao:', outputPath);
+    await electronService.getFileStats(outputPath);
   } catch (err) {
     console.error('[OZT→TGA] ERRO: Arquivo nao foi encontrado apos salvar!');
     throw new Error(`Arquivo TGA não foi criado: ${outputPath}`);
@@ -497,7 +462,6 @@ async function ozjToJpg(ozjPath: string, outputFolder?: string): Promise<void> {
   
   console.log('[OZJ→JPG] ========================================');
   console.log('[OZJ→JPG] Arquivo de origem:', ozjPath);
-  console.log('[OZJ→JPG] Tamanho do arquivo OZJ:', arrayBuffer.byteLength, 'bytes');
   
   const jpgBuffer = decodeOZJ(arrayBuffer);
   
@@ -512,7 +476,6 @@ async function ozjToJpg(ozjPath: string, outputFolder?: string): Promise<void> {
     throw new Error('JPEG extraído é inválido (magic number incorreto)');
   }
   
-  console.log('[OZJ→JPG] Tamanho do JPEG extraído:', jpgBuffer.byteLength, 'bytes');
   
   const filename = (await electronService.getBasename(ozjPath)).replace(/\.ozj$/i, '.jpg');
   const outputPath = outputFolder 
@@ -527,10 +490,7 @@ async function ozjToJpg(ozjPath: string, outputFolder?: string): Promise<void> {
   
   // Verifica se o arquivo foi criado
   try {
-    const stats = await electronService.getFileStats(outputPath);
-    console.log('[OZJ→JPG] Arquivo criado com sucesso!');
-    console.log('[OZJ→JPG] Tamanho verificado:', stats.size, 'bytes');
-    console.log('[OZJ→JPG] Localizacao:', outputPath);
+    await electronService.getFileStats(outputPath);
   } catch (err) {
     console.error('[OZJ→JPG] ERRO: Arquivo nao foi encontrado apos salvar!');
     throw new Error(`Arquivo JPG não foi criado: ${outputPath}`);
@@ -560,7 +520,6 @@ async function jpgToOzj(jpgPath: string, outputFolder?: string): Promise<void> {
   
   console.log('[JPG→OZJ] ========================================');
   console.log('[JPG→OZJ] Arquivo de origem:', jpgPath);
-  console.log('[JPG→OZJ] Tamanho do arquivo JPG:', arrayBuffer.byteLength, 'bytes');
   
   // Codifica JPEG para OZJ (JPEG direto, sem compressão - formato compatível com Pentium Tools e o jogo)
   // Formato: JPEG direto (FF D8) - igual ao Pentium Tools
@@ -571,7 +530,6 @@ async function jpgToOzj(jpgPath: string, outputFolder?: string): Promise<void> {
     throw new Error('Falha ao codificar JPEG em OZJ');
   }
   
-  console.log('[JPG→OZJ] Tamanho do OZJ gerado:', ozjBuffer.byteLength, 'bytes');
   
   const filename = (await electronService.getBasename(jpgPath)).replace(/\.(jpg|jpeg)$/i, '.ozj');
   const outputPath = outputFolder 
@@ -586,10 +544,7 @@ async function jpgToOzj(jpgPath: string, outputFolder?: string): Promise<void> {
   
   // Verifica se o arquivo foi criado
   try {
-    const stats = await electronService.getFileStats(outputPath);
-    console.log('[JPG→OZJ] Arquivo criado com sucesso!');
-    console.log('[JPG→OZJ] Tamanho verificado:', stats.size, 'bytes');
-    console.log('[JPG→OZJ] Localizacao:', outputPath);
+    await electronService.getFileStats(outputPath);
   } catch (err) {
     console.error('[JPG→OZJ] ERRO: Arquivo nao foi encontrado apos salvar!');
     throw new Error(`Arquivo OZJ não foi criado: ${outputPath}`);

@@ -7,7 +7,7 @@ interface ButtonProps {
   variant?: 'primary' | 'secondary';
 }
 
-const Button = ({ children, onClick, disabled = false, variant = 'primary' }: ButtonProps) => {
+const Button = ({ children, onClick, disabled = false }: ButtonProps) => {
   // Usa as classes premium do mu-server-manager
   const baseStyles = "premium-btn sm-sidebar-btn w-full py-3 px-4 font-medium text-white text-sm";
 

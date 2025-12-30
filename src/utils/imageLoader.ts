@@ -9,16 +9,10 @@ export async function loadImageAsDataUrl(filePath: string): Promise<string> {
     const ext = (await electronService.getExtension(filePath)).toLowerCase();
     const uint8Array = await electronService.readFile(filePath);
     
-    console.log('[ImageLoader] Arquivo:', filePath);
-    console.log('[ImageLoader] Extensão:', ext);
-    console.log('[ImageLoader] Bytes recebidos:', uint8Array.length);
-    
     // Validação básica
     if (!uint8Array || uint8Array.length === 0) {
       throw new Error('Arquivo vazio ou não foi possível ler o conteúdo');
     }
-    
-    console.log('[ImageLoader] Primeiros 10 bytes:', Array.from(uint8Array.slice(0, Math.min(10, uint8Array.length))));
     
     // Converte Uint8Array para ArrayBuffer
     const arrayBuffer = uint8Array.buffer as ArrayBuffer;

@@ -22,7 +22,6 @@ export function decodeTGA(buffer: ArrayBuffer): ImageData {
   }
   
   const view = new DataView(buffer);
-  const bytes = new Uint8Array(buffer);
   
   // Debug logs (desabilitados)
   // console.log('[TGA] Buffer size:', buffer.byteLength);

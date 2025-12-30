@@ -185,9 +185,7 @@ export const useImagePreview = (filePath: string | null, isThumbnail: boolean = 
 
       if (ext === '.png' || ext === '.jpg' || ext === '.jpeg') {
         // PNG/JPEG direto
-        console.log(`[Preview] Carregando ${ext.toUpperCase()}${isThumbnail ? ' (thumbnail)' : ''}:`, path);
         const data = await electronService.readFile(path);
-        console.log(`[Preview] Arquivo lido: ${data.length} bytes`);
         const mimeType = ext === '.png' ? 'image/png' : 'image/jpeg';
         
         // Cria uma cópia do ArrayBuffer para evitar problemas de referência

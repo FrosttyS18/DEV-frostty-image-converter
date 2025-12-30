@@ -21,12 +21,8 @@ export function decodeOZT(buffer: ArrayBuffer): ImageData {
                         data[0] === 0x78 && 
                         (data[1] === 0x9C || data[1] === 0x01 || data[1] === 0xDA || data[1] === 0x5E);
     
-    console.log('[OZT] Arquivo comprimido?', isCompressed);
-    console.log('[OZT] Primeiros bytes:', Array.from(data.slice(0, Math.min(4, data.length))));
-    
     if (isCompressed) {
       // Está comprimido: descomprime primeiro
-      console.log('[OZT] Descomprimindo com zlib...');
       const decompressed = pako.inflate(data);
       return decodeTGA(decompressed.buffer);
     } else {
