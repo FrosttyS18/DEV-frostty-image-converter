@@ -5,10 +5,49 @@ import { getValidConversions } from '../utils/conversionValidator';
 import { useImagePreview } from '../hooks/useImagePreview';
 import { SUPPORTED_EXTENSIONS } from '../constants/formats';
 
-// Sistema de fila global para controlar carregamentos
-const thumbnailQueue: Array<() => void> = [];
-let activeLoads = 0;
-const MAX_CONCURRENT_LOADS = 15;
+// Sistema de fila global com prioridades
+interface QueueTask {
+  execute: () => void;
+  priority: number;
+  fileSize: number;
+}
+
+const thumbnailQueue: QueueTask[] = [];
+let activeLoads = { high: 0, medium: 0, low: 0 };
+const MAX_LOADS = {
+  high: 10,   // Arquivos < 1MB
+  medium: 5,  // Arquivos 1-5MB
+  low: 2,     // Arquivos > 5MB
+};
+
+function getPriority(fileSize: number): 'high' | 'medium' | 'low' {
+  if (fileSize < 1024 * 1024) return 'high';
+  if (fileSize < 5 * 1024 * 1024) return 'medium';
+  return 'low';
+}
+
+function canLoad(priority: 'high' | 'medium' | 'low'): boolean {
+  return activeLoads[priority] < MAX_LOADS[priority];
+}
+
+function processQueue() {
+  if (thumbnailQueue.length === 0) return;
+  
+  // Ordena por prioridade (high = 3, medium = 2, low = 1)
+  thumbnailQueue.sort((a, b) => b.priority - a.priority);
+  
+  // Processa tasks que podem carregar
+  for (let i = thumbnailQueue.length - 1; i >= 0; i--) {
+    const task = thumbnailQueue[i];
+    const priority = getPriority(task.fileSize);
+    
+    if (canLoad(priority)) {
+      thumbnailQueue.splice(i, 1);
+      task.execute();
+      break; // Processa uma por vez
+    }
+  }
+}
 
 interface FileListProps {
   files: FileInfo[];
@@ -373,13 +412,15 @@ const FileList = ({
   );
 };
 
-// Componente de thumbnail com lazy loading otimizado
+// Componente de thumbnail com lazy loading e fila priorizada
 const FileThumbnail = ({ file, isScrolling }: { file: FileInfo; isScrolling: boolean }) => {
   const [shouldLoad, setShouldLoad] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const thumbnailRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const priority = getPriority(file.size);
+  const priorityValue = priority === 'high' ? 3 : priority === 'medium' ? 2 : 1;
 
   // Intersection Observer para detectar visibilidade
   useEffect(() => {
@@ -390,10 +431,12 @@ const FileThumbnail = ({ file, isScrolling }: { file: FileInfo; isScrolling: boo
         entries.forEach((entry) => {
           setIsVisible(entry.isIntersecting);
           
-          // Se saiu da viewport e estava carregando, cancela
-          if (!entry.isIntersecting && abortControllerRef.current) {
-            abortControllerRef.current.abort();
-            abortControllerRef.current = null;
+          // Se saiu da viewport, remove da fila se ainda não carregou
+          if (!entry.isIntersecting && !shouldLoad) {
+            const index = thumbnailQueue.findIndex(t => t.execute.name === `load_${file.path}`);
+            if (index !== -1) {
+              thumbnailQueue.splice(index, 1);
+            }
           }
         });
       },
@@ -410,38 +453,39 @@ const FileThumbnail = ({ file, isScrolling }: { file: FileInfo; isScrolling: boo
         observerRef.current.disconnect();
         observerRef.current = null;
       }
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
     };
-  }, []);
+  }, [file.path, shouldLoad]);
 
   // Adiciona à fila quando visível e não está scrollando
   useEffect(() => {
     if (isVisible && !isScrolling && !shouldLoad) {
-      // Adiciona à fila
-      const loadTask = () => {
-        if (activeLoads < MAX_CONCURRENT_LOADS) {
-          activeLoads++;
-          abortControllerRef.current = new AbortController();
+      const loadTask = function executeLoad() {
+        if (canLoad(priority)) {
+          activeLoads[priority]++;
           setShouldLoad(true);
           
-          // Decrementa contador quando terminar
+          // Libera slot e processa fila após carregar
           setTimeout(() => {
-            activeLoads--;
+            activeLoads[priority]--;
             processQueue();
-          }, 100);
+          }, 200);
         } else {
-          // Adiciona à fila se já tem muitos carregando
-          thumbnailQueue.push(loadTask);
+          // Adiciona à fila com prioridade
+          thumbnailQueue.push({
+            execute: loadTask,
+            priority: priorityValue,
+            fileSize: file.size,
+          });
         }
       };
       
+      // Tenta carregar ou adiciona à fila
       loadTask();
     }
-  }, [isVisible, isScrolling, shouldLoad]);
+  }, [isVisible, isScrolling, shouldLoad, file.size, file.path, priority, priorityValue]);
 
-  const { previewUrl, isLoading } = useImagePreview(shouldLoad ? file.path : null);
+  // Para thumbnails, usa modo otimizado (max 256x256)
+  const { previewUrl, isLoading } = useImagePreview(shouldLoad ? file.path : null, true);
 
   // Placeholder enquanto não está visível
   if (!shouldLoad) {
@@ -497,13 +541,5 @@ const FileThumbnail = ({ file, isScrolling }: { file: FileInfo; isScrolling: boo
     </div>
   );
 };
-
-// Processa próximo item da fila
-function processQueue() {
-  if (thumbnailQueue.length > 0 && activeLoads < MAX_CONCURRENT_LOADS) {
-    const nextTask = thumbnailQueue.shift();
-    if (nextTask) nextTask();
-  }
-}
 
 export default FileList;

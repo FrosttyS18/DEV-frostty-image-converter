@@ -46,8 +46,10 @@ function addToCache(path: string, url: string, info: ImageInfo) {
 
 /**
  * Hook para gerenciar preview de imagens com cache LRU
+ * @param filePath - Caminho do arquivo
+ * @param isThumbnail - Se true, aplica downsampling agressivo (max 256x256)
  */
-export const useImagePreview = (filePath: string | null) => {
+export const useImagePreview = (filePath: string | null, isThumbnail: boolean = false) => {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [imageInfo, setImageInfo] = useState<ImageInfo | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -77,7 +79,8 @@ export const useImagePreview = (filePath: string | null) => {
       
       // OTIMIZACAO: Arquivos grandes (> 5MB) podem precisar downsampling
       const isLargeFile = fileSize > 5 * 1024 * 1024;
-      const MAX_PREVIEW_DIMENSION = 2048;
+      // Thumbnails usam dimensão muito menor
+      const MAX_PREVIEW_DIMENSION = isThumbnail ? 256 : 2048;
 
       if (ext === '.png') {
         // PNG direto
@@ -100,9 +103,15 @@ export const useImagePreview = (filePath: string | null) => {
           
           let finalUrl = url;
           
-          // Se arquivo grande E dimensões grandes, reduz para preview
-          if (isLargeFile && (img.width > MAX_PREVIEW_DIMENSION || img.height > MAX_PREVIEW_DIMENSION)) {
-            console.log(`[Preview] Arquivo grande detectado (${(fileSize / 1024 / 1024).toFixed(1)}MB), aplicando downsampling...`);
+          // Para thumbnails, SEMPRE aplica downsampling se maior que 256
+          // Para preview, só se arquivo grande (> 5MB) E maior que 2048
+          const shouldDownsample = isThumbnail 
+            ? (img.width > MAX_PREVIEW_DIMENSION || img.height > MAX_PREVIEW_DIMENSION)
+            : (isLargeFile && (img.width > MAX_PREVIEW_DIMENSION || img.height > MAX_PREVIEW_DIMENSION));
+          
+          if (shouldDownsample) {
+            const mode = isThumbnail ? 'thumbnail' : 'preview';
+            console.log(`[${mode}] Aplicando downsampling (${(fileSize / 1024 / 1024).toFixed(1)}MB)...`);
             
             const canvas = document.createElement('canvas');
             const scale = Math.min(MAX_PREVIEW_DIMENSION / img.width, MAX_PREVIEW_DIMENSION / img.height);
@@ -149,9 +158,14 @@ export const useImagePreview = (filePath: string | null) => {
           
           let finalUrl = dataUrl;
           
-          // OTIMIZACAO: Downsampling para arquivos grandes
-          if (isLargeFile && (img.width > MAX_PREVIEW_DIMENSION || img.height > MAX_PREVIEW_DIMENSION)) {
-            console.log(`[Preview] Otimizando arquivo grande ${ext} (${(fileSize / 1024 / 1024).toFixed(1)}MB)...`);
+          // OTIMIZACAO: Downsampling (mais agressivo para thumbnails)
+          const shouldDownsample = isThumbnail 
+            ? (img.width > MAX_PREVIEW_DIMENSION || img.height > MAX_PREVIEW_DIMENSION)
+            : (isLargeFile && (img.width > MAX_PREVIEW_DIMENSION || img.height > MAX_PREVIEW_DIMENSION));
+          
+          if (shouldDownsample) {
+            const mode = isThumbnail ? 'Thumbnail' : 'Preview';
+            console.log(`[${mode}] Otimizando ${ext} (${(fileSize / 1024 / 1024).toFixed(1)}MB)...`);
             
             const canvas = document.createElement('canvas');
             const scale = Math.min(MAX_PREVIEW_DIMENSION / img.width, MAX_PREVIEW_DIMENSION / img.height);
