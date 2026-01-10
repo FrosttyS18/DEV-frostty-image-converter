@@ -10,6 +10,7 @@ import { useGlowPointer } from './hooks/useGlowPointer';
 import { electronService } from './services/electronService';
 import { ConversionType, FileInfo } from './types';
 import { useTranslation } from './hooks/useTranslation';
+import { invalidateCache, cleanupOldCache } from './hooks/useImagePreview';
 
 function App() {
   const [showSuccessToast, setShowSuccessToast] = useState(false);
@@ -98,18 +99,21 @@ function App() {
     }
   }, [fileError]);
   
-  // Cleanup global quando app desmonta ou fecha
+  // Cleanup global quando app desmonta ou fecha + limpeza periódica de cache
   useEffect(() => {
+    // Limpeza periódica de cache antigo (a cada 2 minutos) - OTIMIZAÇÃO DE RAM
+    const cleanupInterval = setInterval(() => {
+      cleanupOldCache();
+    }, 2 * 60 * 1000); // 2 minutos
+    
     return () => {
+      clearInterval(cleanupInterval);
       console.log('[App] Cleanup global - revogando todos os blob URLs...');
       
-      // Revoga blob URLs que possam estar em cache
-      if (selectedFile?.path) {
-        // useImagePreview já faz cleanup automático, mas garantimos aqui também
-        console.log('[App] Limpando recursos ao fechar app');
-      }
+      // Limpa todo o cache ao fechar - OTIMIZAÇÃO DE RAM
+      invalidateCache();
       
-      // Cleanup adicional pode ser feito aqui se necessário
+      console.log('[App] Limpando recursos ao fechar app');
     };
   }, []);
 

@@ -191,7 +191,7 @@ Junta pecas de loading screen em imagem unica.
 ### split-loading-screen.js
 Divide imagem editada de volta em pecas OZJ.
 
-Veja LOADING-SCREEN-TOOLS.md para detalhes.
+Veja [docs/LOADING-SCREEN-TOOLS.md](docs/LOADING-SCREEN-TOOLS.md) para detalhes.
 
 ## Seguranca e Cleanup
 

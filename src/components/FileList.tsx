@@ -6,6 +6,7 @@ import { useImagePreview } from '../hooks/useImagePreview';
 import { SUPPORTED_EXTENSIONS } from '../constants/formats';
 import { useTranslation } from '../hooks/useTranslation';
 import SettingsModal from './SettingsModal';
+import { formatFileSize } from '../utils/formatters';
 
 // Sistema de fila global com prioridades
 interface QueueTask {
@@ -17,9 +18,9 @@ interface QueueTask {
 const thumbnailQueue: QueueTask[] = [];
 let activeLoads = { high: 0, medium: 0, low: 0 };
 const MAX_LOADS = {
-  high: 10,   // Arquivos < 1MB
-  medium: 5,  // Arquivos 1-5MB
-  low: 2,     // Arquivos > 5MB
+  high: 5,    // REDUZIDO de 10 para 5 - economiza RAM
+  medium: 3,  // REDUZIDO de 5 para 3 - economiza RAM
+  low: 1,     // REDUZIDO de 2 para 1 - economiza RAM
 };
 
 function getPriority(fileSize: number): 'high' | 'medium' | 'low' {
@@ -173,11 +174,6 @@ const FileList = ({
     }
   };
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  };
 
   const getValidOptions = (file: FileInfo | null) => {
     if (!file) return [];
@@ -424,7 +420,7 @@ const FileList = ({
               {/* Dropdown menu */}
               {isFilterOpen && (
                 <div className="absolute top-full mt-1 right-0 w-24 glass rounded-xl border border-white/20
-                              shadow-xl py-1 backdrop-blur-xl z-50 animate-fade-in">
+                              shadow-xl py-1 backdrop-blur-md z-50 animate-fade-in">
                   <button
                     onClick={() => { setFilterType('all'); setIsFilterOpen(false); }}
                     className={`w-full px-3 py-2 text-xs text-center hover:bg-purple-500/20 rounded-lg
@@ -504,7 +500,7 @@ const FileList = ({
                     
                     return (
                       <div className="absolute top-full right-0 mt-1 w-40 glass rounded-xl border border-white/20
-                                    shadow-xl py-1 backdrop-blur-xl z-50 animate-fade-in">
+                                    shadow-xl py-1 backdrop-blur-md z-50 animate-fade-in">
                         {/* Header */}
                         <div className="px-3 py-1.5 border-b border-white/10">
                           <p className="text-xs font-medium text-purple-300">
@@ -614,7 +610,7 @@ const FileList = ({
             >
               <div className="flex items-center gap-3">
                 {/* Thumbnail ou ícone do tipo de arquivo */}
-                <FileThumbnail file={file} isScrolling={isScrolling} />
+                <FileThumbnail file={file} isScrolling={isScrolling} onShowToast={onShowToast} />
 
                 {/* Info do arquivo */}
                 <div className="flex-1 min-w-0">
@@ -679,7 +675,7 @@ const FileList = ({
         <div
           ref={contextMenuRef}
           className="fixed z-[999999] glass rounded-xl border border-white/20 shadow-2xl
-                     backdrop-blur-xl animate-fade-in w-[160px]"
+                     backdrop-blur-md animate-fade-in w-[160px]"
           style={{
             left: `${contextMenu.x}px`,
             top: `${contextMenu.y}px`,
@@ -727,11 +723,16 @@ const FileList = ({
 };
 
 // Componente de thumbnail com lazy loading e fila priorizada
-const FileThumbnail = ({ file, isScrolling }: { file: FileInfo; isScrolling: boolean }) => {
+const FileThumbnail = ({ file, isScrolling, onShowToast }: { file: FileInfo; isScrolling: boolean; onShowToast?: (message: string, type?: 'info' | 'success' | 'error') => void }) => {
+  const { t } = useTranslation();
   const [shouldLoad, setShouldLoad] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const thumbnailRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
+  const toastShownRef = useRef(false); // Evita múltiplos toasts
+
+  const MAX_THUMBNAIL_SIZE = 8 * 1024 * 1024; // 8MB
+  const isTooLarge = file.size > MAX_THUMBNAIL_SIZE;
 
   const priority = getPriority(file.size);
   const priorityValue = priority === 'high' ? 3 : priority === 'medium' ? 2 : 1;
@@ -772,7 +773,14 @@ const FileThumbnail = ({ file, isScrolling }: { file: FileInfo; isScrolling: boo
 
   // Adiciona à fila quando visível e não está scrollando
   useEffect(() => {
-    if (isVisible && !isScrolling && !shouldLoad) {
+    // Se arquivo > 10MB, não carrega thumbnail e mostra toast
+    if (isTooLarge && isVisible && !toastShownRef.current && onShowToast) {
+      toastShownRef.current = true;
+      onShowToast(t('warning.thumbnailTooLarge'), 'info');
+    }
+    
+    // Só tenta carregar se arquivo <= 10MB
+    if (isVisible && !isScrolling && !shouldLoad && !isTooLarge) {
       const loadTask = function executeLoad() {
         if (canLoad(priority)) {
           activeLoads[priority]++;
@@ -796,13 +804,13 @@ const FileThumbnail = ({ file, isScrolling }: { file: FileInfo; isScrolling: boo
       // Tenta carregar ou adiciona à fila
       loadTask();
     }
-  }, [isVisible, isScrolling, shouldLoad, file.size, file.path, priority, priorityValue]);
+  }, [isVisible, isScrolling, shouldLoad, file.size, file.path, priority, priorityValue, isTooLarge, onShowToast]);
 
-  // Para thumbnails, usa modo otimizado (max 256x256)
-  const { previewUrl, isLoading } = useImagePreview(shouldLoad ? file.path : null, true);
+  // Para thumbnails, usa modo otimizado (max 128x128) - NÃO carrega se > 10MB
+  const { previewUrl, isLoading } = useImagePreview((shouldLoad && !isTooLarge) ? file.path : null, true);
 
-  // Placeholder enquanto não está visível
-  if (!shouldLoad) {
+  // Placeholder se arquivo > 10MB ou enquanto não está visível
+  if (!shouldLoad || isTooLarge) {
     return (
       <div ref={thumbnailRef} className={`
         w-10 h-10 rounded-lg flex items-center justify-center
@@ -831,11 +839,17 @@ const FileThumbnail = ({ file, isScrolling }: { file: FileInfo; isScrolling: boo
   // Preview carregado
   if (previewUrl) {
     return (
-      <div ref={thumbnailRef} className="w-10 h-10 rounded-lg overflow-hidden bg-black/20 border border-white/10">
+      <div ref={thumbnailRef} className="w-10 h-10 rounded-lg overflow-hidden bg-black/20 border border-white/10 flex items-center justify-center">
         <img 
           src={previewUrl} 
           alt={file.name}
-          className="w-full h-full object-cover"
+          className="w-full h-full object-contain"
+          style={{ imageRendering: 'smooth' }}
+          onError={(e) => {
+            // Fallback se imagem falhar ao renderizar
+            console.error('[Thumbnail] Erro ao renderizar:', file.name);
+            e.currentTarget.style.display = 'none';
+          }}
         />
       </div>
     );

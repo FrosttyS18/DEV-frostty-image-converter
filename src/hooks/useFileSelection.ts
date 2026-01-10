@@ -19,40 +19,41 @@ export const useFileSelection = () => {
     try {
       const files = await electronService.readDirectory(folderPath);
       
-      // Primeiro filtra arquivos por extensão
-      const filteredFiles = [];
-      for (const file of files) {
+      // Filtra e mapeia arquivos em uma única passada (otimização: evita chamada duplicada de getExtension)
+      const fileInfosPromises = files.map(async (file: string) => {
+        const filePath = await electronService.joinPath(folderPath, file);
         const ext = await electronService.getExtension(file);
-        if (SUPPORTED_EXTENSIONS.includes(ext.toLowerCase() as any)) {
-          filteredFiles.push(file);
+        const extension = ext.toLowerCase();
+        
+        // Filtra por extensão
+        if (!SUPPORTED_EXTENSIONS.includes(extension as any)) {
+          return null;
         }
-      }
+        
+        const stats = await electronService.getFileStats(filePath);
+        
+        return {
+          path: filePath,
+          name: file,
+          extension: extension,
+          size: stats.size,
+        } as FileInfo;
+      });
       
-      // Depois mapeia para FileInfo
-      const fileInfos: FileInfo[] = await Promise.all(
-        filteredFiles.map(async (file: string) => {
-          const filePath = await electronService.joinPath(folderPath, file);
-          const stats = await electronService.getFileStats(filePath);
-          const extension = await electronService.getExtension(file);
-          
-          return {
-            path: filePath,
-            name: file,
-            extension: extension.toLowerCase(),
-            size: stats.size,
-          };
-        })
-      );
+      const results = await Promise.all(fileInfosPromises);
+      
+      // Remove nulls (arquivos não suportados)
+      const validFiles = results.filter((file): file is FileInfo => file !== null);
 
       // Verifica se encontrou arquivos
-      if (fileInfos.length === 0) {
+      if (validFiles.length === 0) {
         setError('Esta pasta não contém arquivos compatíveis (PNG, TGA, OZT, OZJ, JPG, JPEG).');
         setSelectedFiles([]);
         setIsLoading(false);
         return;
       }
 
-      setSelectedFiles(fileInfos);
+      setSelectedFiles(validFiles);
     } catch (err) {
       let errorMessage = 'Não foi possível acessar esta pasta.';
       

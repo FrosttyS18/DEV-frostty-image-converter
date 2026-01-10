@@ -3,6 +3,7 @@ import { useImagePreview } from '../hooks/useImagePreview';
 import { FileInfo } from '../types';
 import logoSvg from '../assets/logo-dev-frostty.svg';
 import { useTranslation } from '../hooks/useTranslation';
+import { formatFileSize } from '../utils/formatters';
 
 interface CanvasProps {
   currentPreview: string | null;
@@ -12,12 +13,6 @@ interface CanvasProps {
 const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
   const { previewUrl, imageInfo, isLoading, error } = useImagePreview(currentPreview);
   const { t } = useTranslation();
-  
-  const formatFileSize = (bytes: number) => {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  };
 
   const [zoom, setZoom] = useState(1);
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -51,10 +46,15 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
     
     const scaleX = containerWidth / imageInfo.width;
     const scaleY = containerHeight / imageInfo.height;
+    // Não reduz imagens menores que o container (mantém zoom mínimo de 1)
     const autoZoom = Math.min(scaleX, scaleY, 1);
+    // Se a imagem é menor que o container, mantém em tamanho original (zoom = 1)
+    const finalAutoZoom = (imageInfo.width <= containerWidth && imageInfo.height <= containerHeight) 
+      ? 1 
+      : autoZoom;
     
-    autoFitZoomRef.current = autoZoom;
-    setZoom(autoZoom);
+    autoFitZoomRef.current = finalAutoZoom;
+    setZoom(finalAutoZoom);
     setPosition({ x: 0, y: 0 });
   }, [imageInfo]);
 
@@ -298,15 +298,40 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
       {/* Header */}
       <div className="flex items-stretch gap-4">
         <div className="glass-strong rounded-2xl px-4 py-3 flex-1">
-          <h2 className="text-white text-lg font-semibold truncate relative group/filename inline-block">
-            {selectedFile?.name || t('noFileSelected')}
+          <div className="flex items-center gap-2">
+            <h2 className="text-white text-lg font-semibold truncate relative group/filename inline-block selectable-text flex-1">
+              {selectedFile?.name || t('noFileSelected')}
+              {selectedFile?.name && (
+                <div className="absolute bottom-full left-0 mb-2 px-2 py-1 bg-black/90 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover/filename:opacity-100 transition-opacity duration-200 pointer-events-none z-50">
+                  {selectedFile.name}
+                  <div className="absolute top-full left-4 -mt-1 border-4 border-transparent border-t-black/90"></div>
+                </div>
+              )}
+            </h2>
             {selectedFile?.name && (
-              <div className="absolute bottom-full left-0 mb-2 px-2 py-1 bg-black/90 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover/filename:opacity-100 transition-opacity duration-200 pointer-events-none z-50">
-                {selectedFile.name}
-                <div className="absolute top-full left-4 -mt-1 border-4 border-transparent border-t-black/90"></div>
-              </div>
+              <button
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(selectedFile.name);
+                    // Feedback visual opcional - pode adicionar toast depois
+                  } catch (err) {
+                    console.error('Erro ao copiar:', err);
+                  }
+                }}
+                className="relative group/copy flex items-center justify-center w-8 h-8 rounded-lg hover:bg-white/10 transition-colors flex-shrink-0"
+                aria-label="Copiar nome do arquivo"
+              >
+                <svg className="w-4 h-4 text-purple-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                {/* Tooltip no padrão do projeto */}
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-black/90 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover/copy:opacity-100 transition-opacity duration-200 pointer-events-none z-50">
+                  {t('copyFileName')}
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-black/90"></div>
+                </div>
+              </button>
             )}
-          </h2>
+          </div>
           <div className="flex items-center gap-2 mt-0.5 text-xs">
             {imageInfo && (
               <span className="text-purple-300">
@@ -329,7 +354,7 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
           <img 
             src={logoSvg} 
             alt="DEV Frostty" 
-            className="h-full w-auto opacity-80 drop-shadow-[0_0_20px_rgba(139,92,246,0.4)]"
+            className="h-full w-auto opacity-80 drop-shadow-[0_0_10px_rgba(139,92,246,0.3)]"
             style={{ maxHeight: '80px' }}
           />
         </div>
@@ -381,9 +406,15 @@ const Canvas = ({ currentPreview, selectedFile }: CanvasProps) => {
             <img
               src={previewUrl}
               alt="Preview"
-              className="w-full h-full object-contain rounded-lg shadow-2xl select-none"
+              className="rounded-lg shadow-2xl select-none"
               draggable={false}
-              style={{ imageRendering: 'auto' }}
+              style={{ 
+                width: 'auto',
+                height: 'auto',
+                maxWidth: '100%',
+                maxHeight: '100%',
+                imageRendering: 'smooth'
+              }}
             />
           </div>
         ) : (

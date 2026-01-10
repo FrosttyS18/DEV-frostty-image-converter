@@ -16,7 +16,7 @@ interface CacheEntry {
 
 // Cache LRU global (compartilhado entre todas as instâncias)
 const previewCache = new Map<string, CacheEntry>();
-const MAX_CACHE_SIZE = 50;
+const MAX_CACHE_SIZE = 20; // REDUZIDO de 50 para 20 para economizar RAM
 
 function addToCache(path: string, url: string, info: ImageInfo, fileModifiedTime: number) {
   // Remove mais antigo se cache estiver cheio
@@ -73,6 +73,29 @@ export function invalidateCache(filePath?: string) {
 }
 
 /**
+ * Limpa cache antigo (mais de 5 minutos sem uso) - OTIMIZAÇÃO DE RAM
+ */
+export function cleanupOldCache() {
+  const now = Date.now();
+  const MAX_AGE_MS = 5 * 60 * 1000; // 5 minutos
+  
+  let cleaned = 0;
+  previewCache.forEach((entry, key) => {
+    if (now - entry.timestamp > MAX_AGE_MS) {
+      if (entry.url.startsWith('blob:')) {
+        URL.revokeObjectURL(entry.url);
+      }
+      previewCache.delete(key);
+      cleaned++;
+    }
+  });
+  
+  if (cleaned > 0) {
+    console.log(`[Cache] Limpeza automática: ${cleaned} item(s) removido(s)`);
+  }
+}
+
+/**
  * Aplica downsampling na imagem se necessário
  */
 function applyDownsampling(
@@ -82,9 +105,10 @@ function applyDownsampling(
   fileSize: number,
   ext: string
 ): string {
+  // OTIMIZADO: Aplica downsampling mais agressivo para economizar RAM
   const shouldDownsample = isThumbnail 
     ? (img.width > maxDimension || img.height > maxDimension)
-    : (fileSize > 5 * 1024 * 1024 && (img.width > maxDimension || img.height > maxDimension));
+    : (fileSize > 2 * 1024 * 1024 && (img.width > maxDimension || img.height > maxDimension)); // REDUZIDO de 5MB para 2MB
   
   if (!shouldDownsample) {
     return '';
@@ -180,13 +204,20 @@ export const useImagePreview = (filePath: string | null, isThumbnail: boolean = 
       const fileSize = stats.size;
       const fileModifiedTime = stats.mtimeMs;
       
-      // Thumbnails usam dimensão muito menor
-      const MAX_PREVIEW_DIMENSION = isThumbnail ? 256 : 2048;
+      // Thumbnails usam dimensão muito menor - OTIMIZADO para economizar RAM
+      const MAX_PREVIEW_DIMENSION = isThumbnail ? 128 : 2048; // Thumbnail: 128px, Preview: mantém 2048px
 
       if (ext === '.png' || ext === '.jpg' || ext === '.jpeg') {
         // PNG/JPEG direto
         const data = await electronService.readFile(path);
         const mimeType = ext === '.png' ? 'image/png' : 'image/jpeg';
+        
+        // VALIDAÇÃO: Verifica se arquivo não está vazio
+        if (data.byteLength === 0) {
+          setError('Arquivo está vazio ou corrompido');
+          setIsLoading(false);
+          return;
+        }
         
         // Cria uma cópia do ArrayBuffer para evitar problemas de referência
         const arrayBuffer = data.buffer.slice(
@@ -238,10 +269,15 @@ export const useImagePreview = (filePath: string | null, isThumbnail: boolean = 
           setPreviewUrl(finalUrl);
         };
         img.onerror = (err) => {
-          console.error('[Preview] Erro ao carregar imagem:', err);
+          console.error('[Preview] Erro ao carregar imagem:', err, 'ext:', ext);
           if (!isCancelled) {
             URL.revokeObjectURL(url);
-            setError('Erro ao carregar dimensões da imagem');
+            // Mensagem de erro mais específica para PNG/JPG
+            const errorMsg = ext === '.png' || ext === '.jpg' || ext === '.jpeg'
+              ? 'Erro ao decodificar imagem. Arquivo pode estar corrompido ou formato inválido.'
+              : 'Erro ao carregar dimensões da imagem';
+            setError(errorMsg);
+            setIsLoading(false);
           }
         };
         img.src = url;
@@ -249,7 +285,14 @@ export const useImagePreview = (filePath: string | null, isThumbnail: boolean = 
         // Armazena função de cancelamento
         cancelLoadRef.current = () => {
           isCancelled = true;
-          // Não revoga aqui, deixa o onload/onerror fazer isso
+          // CORREÇÃO MEMORY LEAK: Revoga blob URL imediatamente ao cancelar
+          if (url && url.startsWith('blob:')) {
+            URL.revokeObjectURL(url);
+          }
+          // Limpa referência para evitar uso após cancelamento
+          if (currentUrlRef.current === url) {
+            currentUrlRef.current = null;
+          }
         };
         
       } else if (ext === '.tga' || ext === '.ozt' || ext === '.ozj') {
@@ -316,16 +359,20 @@ export const useImagePreview = (filePath: string | null, isThumbnail: boolean = 
 
     loadPreview(filePath);
 
-    // Verifica periodicamente se o arquivo foi modificado (polling a cada 2 segundos)
+    // Verifica periodicamente se o arquivo foi modificado (polling otimizado a cada 10 segundos)
+    // Flag para garantir cleanup mesmo durante operações assíncronas
+    let isMounted = true;
     const checkInterval = setInterval(async () => {
+      if (!isMounted) return;
+      
       try {
         const cached = previewCache.get(filePath);
-        if (cached) {
+        if (cached && isMounted) {
           const stats = await electronService.getFileStats(filePath);
           const fileModifiedTime = stats.mtimeMs;
           
           // Se arquivo foi modificado, força refresh
-          if (cached.fileModifiedTime !== fileModifiedTime) {
+          if (cached.fileModifiedTime !== fileModifiedTime && isMounted) {
             console.log('[Preview] Arquivo modificado detectado, forçando refresh:', filePath);
             loadPreview(filePath, true);
           }
@@ -333,21 +380,27 @@ export const useImagePreview = (filePath: string | null, isThumbnail: boolean = 
       } catch (err) {
         // Ignora erros de polling
       }
-    }, 2000); // Verifica a cada 2 segundos
+    }, 10000); // REDUZIDO polling de 5s para 10s para economizar CPU/RAM
 
     // Cleanup quando o componente desmonta ou filePath muda
     return () => {
+      isMounted = false;
       clearInterval(checkInterval);
-      // Cancela carregamento em andamento
+      // Cancela carregamento em andamento (já revoga blob URL internamente)
       if (cancelLoadRef.current) {
         cancelLoadRef.current();
         cancelLoadRef.current = null;
       }
-      // Revoga blob URL se existir
+      // CORREÇÃO MEMORY LEAK: Revoga blob URL se existir (garantia extra)
       if (currentUrlRef.current && currentUrlRef.current.startsWith('blob:')) {
         URL.revokeObjectURL(currentUrlRef.current);
         currentUrlRef.current = null;
       }
+      // Limpa estados para evitar updates em componente desmontado
+      setPreviewUrl(null);
+      setImageInfo(null);
+      setError(null);
+      setIsLoading(false);
     };
   }, [filePath, loadPreview]);
 

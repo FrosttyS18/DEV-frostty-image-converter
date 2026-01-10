@@ -30,6 +30,7 @@ export default {
   panDeactivate: 'Desactivar pan',
   zoomLevel: 'Zoom: {level}%',
   fileInfo: '{name} - {width}×{height} - {size}',
+  copyFileName: 'Copiar nombre del archivo',
   
   // Settings
   settings: 'Configuración',
@@ -63,6 +64,7 @@ export default {
     noFilesToConvert: 'Seleccione al menos un archivo antes de convertir.',
     selectFolderFirst: 'Primero debe seleccionar una carpeta con archivos de Mu Online.',
     emptyFolder: 'Esta carpeta no contiene archivos compatibles (PNG, TGA, OZT u OZJ).',
+    thumbnailTooLarge: 'miniatura max 8mb',
   },
   
   // Loading messages

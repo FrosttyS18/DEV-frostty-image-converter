@@ -70,7 +70,7 @@ const Toast = ({ message, type, onClose, duration = 4000 }: ToastProps) => {
           glass rounded-xl px-4 py-3
           border ${borderColors[type]} ${bgColors[type]}
           shadow-[0_20px_60px_rgba(0,0,0,0.55)]
-          backdrop-blur-xl
+          backdrop-blur-md
           flex items-center gap-3
           max-w-[280px]
           transform transition-all duration-300

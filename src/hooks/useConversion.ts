@@ -3,6 +3,7 @@ import { FileInfo, ConversionType } from '../types';
 import { convertFiles } from '../utils/converter';
 import { invalidateCache } from './useImagePreview';
 import { translate } from '../i18n';
+import { electronService } from '../services/electronService';
 
 /**
  * Hook para gerenciar conversões de arquivos
@@ -51,7 +52,7 @@ export const useConversion = () => {
 
     try {
       console.log('[useConversion] Chamando convertFiles...');
-      await convertFiles({
+      const destinationFolder = await convertFiles({
         type,
         files,
         preserveAlpha: true,
@@ -67,6 +68,33 @@ export const useConversion = () => {
         invalidateCache(file.path);
       });
       console.log('[useConversion] Cache invalidado para arquivos convertidos');
+      
+      // Abre a pasta de destino no explorador do Windows (APENAS UMA VEZ, mesmo com múltiplos arquivos)
+      // Garantia: só abre uma janela, independente de quantos arquivos foram convertidos
+      let folderToOpen: string | null = null;
+      
+      if (destinationFolder) {
+        // Se há pasta de destino específica, todos os arquivos foram salvos lá
+        folderToOpen = destinationFolder;
+        console.log('[useConversion] Pasta de destino definida:', folderToOpen);
+      } else {
+        // Se não há pasta de destino, todos os arquivos foram salvos na mesma pasta de origem
+        // Usa a pasta do primeiro arquivo (todos devem estar na mesma pasta)
+        folderToOpen = await electronService.getDirname(files[0].path);
+        console.log('[useConversion] Pasta de origem (primeiro arquivo):', folderToOpen);
+      }
+      
+      // Abre a pasta apenas uma vez
+      if (folderToOpen) {
+        try {
+          console.log('[useConversion] Abrindo pasta no explorador:', folderToOpen);
+          await electronService.openFolder(folderToOpen);
+          console.log('[useConversion] Pasta aberta com sucesso!');
+        } catch (error) {
+          console.error('[useConversion] Erro ao abrir pasta (não crítico):', error);
+          // Não bloqueia o fluxo se falhar ao abrir pasta
+        }
+      }
       
       // Limpar mensagem após 3s (com cleanup)
       timeoutRef.current = setTimeout(() => {

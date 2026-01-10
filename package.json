@@ -108,7 +108,7 @@
       "deleteAppDataOnUninstall": false
     },
     "portable": {
-      "artifactName": "${productName}-${version}-portable.${ext}"
+      "artifactName": "${productName}-${version}-Portable-Otimizada.${ext}"
     }
   }
 }

@@ -14,6 +14,28 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow: hidden;
+  user-select: none; /* Desabilita seleção de texto globalmente */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+/* Permite seleção apenas em campos de formulário e busca */
+input,
+textarea,
+[contenteditable="true"],
+[type="text"],
+[type="search"],
+[type="email"],
+[type="password"],
+[type="number"],
+[type="tel"],
+[type="url"],
+.selectable-text {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
 }
 
 code {
@@ -58,25 +80,25 @@ code {
 /* Glass morphism effect */
 .glass {
   background: rgba(15, 15, 25, 0.6);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(12px);      /* REDUZIDO de 16px para melhor performance GPU */
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(123, 63, 242, 0.2);
 }
 
 .glass-strong {
   background: rgba(15, 15, 25, 0.8);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(12px);      /* REDUZIDO de 24px para melhor performance GPU */
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(123, 63, 242, 0.3);
 }
 
-/* Glow effects */
+/* Glow effects - OTIMIZADO para GPU */
 .glow-purple {
-  box-shadow: 0 0 20px rgba(123, 63, 242, 0.3);
+  box-shadow: 0 0 12px rgba(123, 63, 242, 0.25);  /* REDUZIDO de 20px para melhor performance GPU */
 }
 
 .glow-purple-strong {
-  box-shadow: 0 0 30px rgba(123, 63, 242, 0.5);
+  box-shadow: 0 0 18px rgba(123, 63, 242, 0.4);    /* REDUZIDO de 30px para melhor performance GPU */
 }
 
 /* =====================================
@@ -104,7 +126,7 @@ code {
 
   /* Glass controls */
   --sm-glass-alpha: .38;
-  --sm-glass-blur: 54px;
+  --sm-glass-blur: 12px;      /* REDUZIDO de 54px para melhor performance GPU */
   --sm-glass-border: rgba(255, 255, 255, 0.1);
 }
 
@@ -124,7 +146,7 @@ code {
   
   /* Tunables */
   --sm-btn-border: 2px;
-  --sm-btn-glow-blur: 80px;
+  --sm-btn-glow-blur: 20px;   /* REDUZIDO de 80px para melhor performance GPU */
   --sm-btn-glow-opacity: 0;
   --sm-btn-outline-opacity: 0;
   --sm-btn-walk-ms: 2600ms;
@@ -187,11 +209,11 @@ code {
   transform: translateY(-1px);
   border-color: rgba(var(--sm-primary), .55);
   
-  /* AURA AZUL/ROXA - Efeito de brilho */
+  /* AURA AZUL/ROXA - Efeito de brilho - OTIMIZADO para GPU */
   box-shadow:
     0 0 0 1px rgba(var(--sm-primary), .65),
-    0 0 18px rgba(var(--sm-primary), .38),
-    0 0 42px rgba(var(--sm-primary), .30);
+    0 0 12px rgba(var(--sm-primary), .30),      /* REDUZIDO de 18px */
+    0 0 24px rgba(var(--sm-primary), .25);        /* REDUZIDO de 42px */
   
   --sm-btn-outline-opacity: 1;
   --sm-btn-glow-opacity: .32;

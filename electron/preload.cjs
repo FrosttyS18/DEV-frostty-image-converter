@@ -24,6 +24,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
   pathDirname: (filePath) => ipcRenderer.invoke('path-dirname', filePath),
   pathBasename: (filePath) => ipcRenderer.invoke('path-basename', filePath),
   
+  // Folder operations
+  openFolder: (folderPath) => ipcRenderer.invoke('open-folder', folderPath),
+  
   // Window controls
   minimizeWindow: () => ipcRenderer.send('window-minimize'),
   maximizeWindow: () => ipcRenderer.send('window-maximize'),

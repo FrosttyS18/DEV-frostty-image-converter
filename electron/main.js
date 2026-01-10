@@ -460,22 +460,47 @@ function createWindow() {
     },
   });
 
-  // Mostra quando pronto e fecha splash (delay mínimo reduzido para performance)
+  // Aguarda splash completar animação antes de mostrar app principal
   const splashStartTime = Date.now();
+  const SPLASH_ANIMATION_DURATION = 4000; // 4 segundos - tempo da animação loadingAnimation
   
-  mainWindow.once('ready-to-show', () => {
-    const MIN_SPLASH_DURATION = 500; // 0.5 segundos apenas para animação suave
-    const elapsedTime = Date.now() - splashStartTime;
-    const remainingTime = Math.max(0, MIN_SPLASH_DURATION - elapsedTime);
+  // Flag para controlar quando o app principal está pronto
+  let isMainReady = false;
+  let isSplashComplete = false;
+  let didShowMain = false;
+  
+  const showMainAndCloseSplash = () => {
+    if (didShowMain) return;
+    didShowMain = true;
     
-    // Aguarda tempo mínimo antes de fechar splash (apenas para transição suave)
-    setTimeout(() => {
-      if (splashWindow && !splashWindow.isDestroyed()) {
-        splashWindow.close();
-        splashWindow = null;
-      }
+    if (splashWindow && !splashWindow.isDestroyed()) {
+      splashWindow.close();
+      splashWindow = null;
+    }
+    
+    if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.show();
-    }, remainingTime);
+    }
+  };
+  
+  const maybeShowMain = () => {
+    if (didShowMain) return;
+    // Só mostra quando AMBOS estiverem prontos
+    if (isMainReady && isSplashComplete) {
+      showMainAndCloseSplash();
+    }
+  };
+  
+  // Timer para garantir que splash complete a animação (4s)
+  setTimeout(() => {
+    isSplashComplete = true;
+    maybeShowMain();
+  }, SPLASH_ANIMATION_DURATION);
+  
+  // Quando app principal estiver pronto
+  mainWindow.once('ready-to-show', () => {
+    isMainReady = true;
+    maybeShowMain();
   });
 
   // Em desenvolvimento, carrega do Vite dev server

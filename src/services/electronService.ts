@@ -24,6 +24,9 @@ declare global {
       pathDirname: (filePath: string) => Promise<string>;
       pathBasename: (filePath: string) => Promise<string>;
       
+      // Folder operations
+      openFolder: (folderPath: string) => Promise<{ ok: boolean; error?: string }>;
+      
       // Window controls
       minimizeWindow: () => void;
       maximizeWindow: () => void;
@@ -200,6 +203,23 @@ class ElectronService {
   async getDirname(filePath: string): Promise<string> {
     const api = this.getAPI();
     return api.pathDirname(filePath);
+  }
+
+  /**
+   * Abre pasta no explorador do Windows
+   */
+  async openFolder(folderPath: string): Promise<void> {
+    try {
+      const api = this.getAPI();
+      const result = await api.openFolder(folderPath);
+
+      if (!result.ok || result.error) {
+        throw new Error(result.error || 'Erro ao abrir pasta');
+      }
+    } catch (error) {
+      console.error('[ElectronService] Erro ao abrir pasta:', error);
+      throw new Error('Não foi possível abrir a pasta no explorador.');
+    }
   }
 
   /**

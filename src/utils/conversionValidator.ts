@@ -48,6 +48,7 @@ export function getValidConversions(extension: string): ConversionOption[] {
       label: 'OZT → TGA',
       enabled: ext === '.ozt',
     },
+
   ];
 
   return allOptions;
