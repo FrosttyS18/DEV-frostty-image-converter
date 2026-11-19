@@ -8,20 +8,21 @@ O `electron-builder` insere um recurso de integridade do ASAR no executável dur
 
 ## 🎯 Solução: Remover o Recurso Antes de Assinar
 
-### Método 1: Resource Hacker (Recomendado - Mais Fácil) ⭐
+### Método 1: Resource Hacker or [Resource Cracker](https://www.pelock.com/products/resource-cracker) (Recomendado - Mais Fácil) ⭐
 
-**Resource Hacker** é uma ferramenta gratuita e fácil de usar para editar recursos de executáveis Windows.
+**Resource Hacker or [Resource Cracker](https://www.pelock.com/products/resource-cracker)** é uma ferramenta gratuita e fácil de usar para editar recursos de executáveis Windows.
 
-#### Passo 1: Baixar Resource Hacker
+#### Passo 1: Baixar Resource Hacker or [Resource Cracker](https://www.pelock.com/products/resource-cracker)
 
 1. Acesse: http://www.angusj.com/resourcehacker/
+2. [Resource Cracker](https://www.pelock.com/products/resource-cracker)
 2. Baixe a versão mais recente (é gratuito)
 3. Extraia o arquivo ZIP
 4. Execute `ResourceHacker.exe` (não precisa instalar)
 
 #### Passo 2: Abrir o Executável
 
-1. No Resource Hacker, vá em **File > Open**
+1. No Resource Hacker or [Resource Cracker](https://www.pelock.com/products/resource-cracker), vá em **File > Open**
 2. Navegue até o executável:
    - `dist-electron\MuTools-1.0.0-portable.exe` (versão portable)
    - `dist-electron\win-unpacked\MuTools.exe` (versão unpacked)
@@ -48,6 +49,7 @@ O `electron-builder` insere um recurso de integridade do ASAR no executável dur
 
 1. Vá em **File > Save** (ou pressione `Ctrl+S`)
 2. Feche o Resource Hacker
+3. [Resource Cracker](https://www.pelock.com/products/resource-cracker)
 3. **Pronto!** O executável está pronto para assinatura
 
 ---
@@ -67,6 +69,7 @@ O script irá:
 - Criar um backup do executável
 - Fornecer instruções detalhadas
 - Abrir o Resource Hacker automaticamente (se instalado)
+- [Resource Cracker](https://www.pelock.com/products/resource-cracker)
 
 #### Usando Node.js
 
@@ -88,7 +91,7 @@ node remove-asar-integrity.js dist-electron/MuTools-1.0.0-portable.exe
    ```
 
 2. **Remover recurso de integridade:**
-   - Use o Resource Hacker (Método 1)
+   - Use o Resource Hacker or [Resource Cracker](https://www.pelock.com/products/resource-cracker) (Método 1)
    - Ou execute o script PowerShell/Node.js
 
 3. **Enviar para seu amigo:**

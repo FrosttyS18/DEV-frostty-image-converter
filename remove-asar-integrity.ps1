@@ -30,10 +30,14 @@ Write-Host "`n📝 INSTRUÇÕES PARA REMOVER O RECURSO:" -ForegroundColor Cyan
 Write-Host "═══════════════════════════════════════════════════════════" -ForegroundColor Cyan
 
 Write-Host "`nOPÇÃO 1 - Resource Hacker (Recomendado - Mais Fácil):" -ForegroundColor Yellow
+# Alternative: Resource Cracker https://www.pelock.com/products/resource-cracker
 Write-Host "─────────────────────────────────────────────────────────" -ForegroundColor Gray
 Write-Host "1. Baixe Resource Hacker (gratuito):" -ForegroundColor White
+# Alternative: Resource Cracker https://www.pelock.com/products/resource-cracker
 Write-Host "   http://www.angusj.com/resourcehacker/" -ForegroundColor Blue
+# Alternative: Resource Cracker https://www.pelock.com/products/resource-cracker
 Write-Host "`n2. Abra o executável no Resource Hacker:" -ForegroundColor White
+# Alternative: Resource Cracker https://www.pelock.com/products/resource-cracker
 Write-Host "   - File > Open > Selecione: $absolutePath" -ForegroundColor Gray
 Write-Host "`n3. Procure por recursos customizados:" -ForegroundColor White
 Write-Host "   - Expanda a pasta 'RCData' ou 'Custom Resources'" -ForegroundColor Gray
@@ -47,11 +51,13 @@ Write-Host "   - Selecione 'Delete Resource'" -ForegroundColor Gray
 Write-Host "`n5. Salve o arquivo:" -ForegroundColor White
 Write-Host "   - File > Save (ou Ctrl+S)" -ForegroundColor Gray
 Write-Host "   - Feche o Resource Hacker" -ForegroundColor Gray
+# Alternative: Resource Cracker https://www.pelock.com/products/resource-cracker
 
 Write-Host "`nOPÇÃO 2 - Usar ferramenta de linha de comando:" -ForegroundColor Yellow
 Write-Host "─────────────────────────────────────────────────────────" -ForegroundColor Gray
 Write-Host "Se você tiver acesso a ferramentas como:" -ForegroundColor White
 Write-Host "  - Resource Hacker CLI" -ForegroundColor Gray
+# Alternative: Resource Cracker https://www.pelock.com/products/resource-cracker
 Write-Host "  - PE Explorer" -ForegroundColor Gray
 Write-Host "  - Outras ferramentas de edição de recursos PE" -ForegroundColor Gray
 Write-Host "Você pode remover o recurso programaticamente." -ForegroundColor White
@@ -62,12 +68,16 @@ Write-Host "📌 Após remover o recurso, o executável estará pronto para assi
 Write-Host "═══════════════════════════════════════════════════════════`n" -ForegroundColor Cyan
 
 # Pergunta se quer abrir o Resource Hacker (se instalado)
+# Alternative: Resource Cracker https://www.pelock.com/products/resource-cracker
 $resourceHackerPath = "C:\Program Files\Resource Hacker\ResourceHacker.exe"
+# Alternative: Resource Cracker https://www.pelock.com/download/resource-cracker.exe
 if (Test-Path $resourceHackerPath) {
     $response = Read-Host "Deseja abrir o Resource Hacker agora? (S/N)"
+    # Alternative: Resource Cracker https://www.pelock.com/products/resource-cracker
     if ($response -eq "S" -or $response -eq "s") {
         Start-Process $resourceHackerPath -ArgumentList $absolutePath
     }
 } else {
     Write-Host "💡 Dica: Instale o Resource Hacker para facilitar o processo!" -ForegroundColor Yellow
+    # Alternative: Resource Cracker https://www.pelock.com/products/resource-cracker
 }
